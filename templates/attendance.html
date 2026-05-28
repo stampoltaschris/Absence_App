@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Καταχώριση - {{ class_name }}</title>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            text-align: center; margin: 0; padding: 0; background-color: #f0f2f5; color: #333;
+        }
+        .navbar {
+            background-color: #fff; padding: 15px 30px; display: flex;
+            justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .user-info { font-size: 16px; color: #4a5568; }
+        .live-clock {
+            font-size: 18px; font-weight: bold; color: #2c3e50;
+            background-color: #edf2f7; padding: 5px 15px; border-radius: 20px; border: 1px solid #e2e8f0;
+        }
+        .logout-btn {
+            background-color: #dc3545; color: white; text-decoration: none;
+            padding: 8px 16px; border-radius: 6px; font-weight: bold; font-size: 14px;
+        }
+        .main-container { padding: 30px 20px; }
+        h2 { color: #2c3e50; margin-top: 0; }
+
+        .student-card { 
+            background: white; padding: 15px; margin: 10px auto; max-width: 450px; 
+            border-radius: 8px; display: flex; justify-content: space-between; align-items: center; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: 0.3s; border: 1px solid transparent;
+        }
+        
+        /* Κουμπί Απουσίας (Αρχικό στυλ) */
+        .absence-btn { 
+            background-color: #e2e8f0; color: #4a5568; border: 1px solid #cbd5e1; 
+            padding: 10px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; transition: 0.2s;
+        }
+        
+        /* Στυλ όταν ο μαθητής επιλεγεί ως ΑΠΩΝ (Πριν την υποβολή) */
+        .student-card.marked-absent { background-color: #fff5f5; border: 1px solid #feb2b2; }
+        .absence-btn.marked-style { background-color: #e53e3e; color: white; border-color: #e53e3e; }
+        
+        /* Το μεγάλο τελικό κουμπί ολοκλήρωσης */
+        .submit-btn { 
+            background-color: #38a169; color: white; border: none; padding: 15px 30px; 
+            border-radius: 8px; font-size: 18px; cursor: pointer; margin-top: 25px; font-weight: bold;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 100%; max-width: 450px; transition: 0.2s;
+        }
+        .submit-btn:hover { background-color: #2f855a; }
+        
+        .warning-banner { 
+            background-color: #fff3cd; color: #856404; padding: 10px; margin: 10px auto; 
+            max-width: 450px; border-radius: 6px; display: none; font-weight: bold; 
+        }
+        .back-link { display: inline-block; margin-top: 15px; color: #007bff; text-decoration: none; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div class="navbar">
+        <div class="user-info">Σύνδεση ως: <b>{{ username }}</b></div>
+        <div class="live-clock" id="nav-clock">00:00:00</div>
+        <a href="/logout" class="logout-btn">Αποσύνδεση</a>
+    </div>
+
+    <div class="main-container">
+        <h2>Τμήμα {{ class_name }} - {{ hour }} Ώρα</h2>
+
+        <div id="warning-msg" class="warning-banner">⚠️ Απομένουν λιγότερα από 5 λεπτά! Παρακαλώ ελέγξτε και υποβάλετε τις απουσίες.</div>
+
+        {% for student in students %}
+        <div class="student-card" id="card-{{ student.id }}">
+            <span>{{ student.name }}</span>
+            <button class="absence-btn" id="btn-{{ student.id }}" onclick="toggleAbsence({{ student.id }})">Απών</button>
+        </div>
+        {% endfor %}
+
+        <button class="submit-btn" onclick="submitAttendance()">🔒 Οριστική Υποβολή & Αποστολή Email</button>
+        
+        <br>
+        <a href="/back-to-dashboard" class="back-link">← Επιστροφή στην επιλογή τμήματος</a>
+    </div>
+
+    <audio id="alert-sound" src="/static/alert.mp3" preload="auto"></audio>
+
+    <script>
+        let absentStudents = []; 
+        // Διαβάζουμε από την Python αν η σελίδα πρέπει να είναι κλειδωμένη για ανάγνωση
+        let isSubmitted = {{ 'true' if is_readonly else 'false' }}; 
+
+        // Όταν φορτώνει η σελίδα, ελέγχουμε αν είναι Read-Only
+        window.onload = function() {
+            if (isSubmitted) {
+                const submitBtn = document.querySelector('.submit-btn');
+                submitBtn.style.backgroundColor = '#a0aec0';
+                submitBtn.style.cursor = 'default';
+                submitBtn.innerText = "🔒 Το τμήμα έχει υποβληθεί - Μόνο Ανάγνωση";
+                submitBtn.disabled = true;
+                
+                // Απενεργοποιούμε όλα τα κουμπιά των μαθητών
+                const buttons = document.querySelectorAll('.absence-btn');
+                buttons.forEach(btn => {
+                    btn.disabled = true;
+                    btn.innerText = "-";
+                    btn.style.backgroundColor = "#cbd5e1";
+                    btn.style.color = "#4a5568";
+                    btn.style.cursor = "default";
+                });
+            }
+        };
+
+        // 1. Επιλογή / Ακύρωση Απουσίας (Στάδιο 1)
+        function toggleAbsence(studentId) {
+    if (isSubmitted) return; // Αν έχει υποβληθεί, σταματάει εδώ
+
+    const card = document.getElementById(`card-${studentId}`);
+    const btn = document.getElementById(`btn-${studentId}`);
+    
+    // Έλεγχος αν το ID υπάρχει ήδη στους απόντες
+    const index = absentStudents.indexOf(studentId);
+    
+    if (index === -1) {
+        absentStudents.push(studentId);
+        card.classList.add('marked-absent');
+        btn.classList.add('marked-style');
+        btn.innerText = "Επιλέχθηκε";
+    } else {
+        absentStudents.splice(index, 1);
+        card.classList.remove('marked-absent');
+        btn.classList.remove('marked-style');
+        btn.innerText = "Απών";
+    }
+}
+
+        // 2. Οριστική Υποβολή (Στάδιο 2)
+        function submitAttendance() {
+            if (isSubmitted) return;
+            
+            let message = `Θέλετε να προχωρήσετε σε οριστική υποβολή; \nΘα σταλούν ${absentStudents.length} email απουσίας.`;
+            if (absentStudents.length === 0) {
+                message = "Δεν έχετε επιλέξει κανέναν απόντα. Θέλετε να υποβάλετε το τμήμα με 'Όλοι Παρόντες';";
+            }
+
+            if(confirm(message)) {
+                fetch('/send-absence', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ 
+                        student_ids: absentStudents,
+                        class_name: "{{ class_name }}"
+                    })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if(data.status === 'success') {
+                        alert(data.message);
+                        // Κάνουμε reload για να τραβήξει ο server την κατάσταση read-only και να κλειδώσει η οθόνη
+                        location.reload(); 
+                    } else { 
+                        alert(data.message); 
+                    }
+                });
+            }
+        }
+
+        // Ζωντανό Ρολόι στην μπάρα πλοήγησης
+        function updateClock() {
+            const now = new Date();
+            const hours =

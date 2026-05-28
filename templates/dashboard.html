@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Επιλογή Τμήματος</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f2f5;
+            margin: 0;
+            padding: 0;
+            text-align: center;
+        }
+        .navbar {
+            background-color: #fff;
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .user-info { font-size: 16px; color: #4a5568; }
+        .live-hour {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2b6cb0;
+            background-color: #ebf8ff;
+            padding: 5px 15px;
+            border-radius: 20px;
+            border: 1px solid #bee3f8;
+        }
+        .logout-btn {
+            background-color: #dc3545;
+            color: white;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+        h2 { color: #2c3e50; margin-bottom: 10px; }
+        p.subtitle { color: #718096; margin-bottom: 30px; }
+        
+        /* Το πλέγμα με τα κουμπιά των τμημάτων */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 20px;
+        }
+        
+        .class-card {
+            text-decoration: none;
+            color: #2d3748;
+            background: white;
+            padding: 25px 15px;
+            border-radius: 10px;
+            font-size: 20px;
+            font-weight: bold;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            transition: transform 0.2s, box-shadow 0.2s, background-color 0.2s;
+            border: 2px solid transparent;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        /* Στυλ για Διαθέσιμο Τμήμα */
+        .class-card.available:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.1);
+            background-color: #f7fafc;
+            border-color: #4299e1;
+        }
+
+        /* Στυλ αν κάποιος άλλος καθηγητής είναι ήδη μέσα στο τμήμα */
+        .class-card.locked {
+            background-color: #feebc8;
+            border-color: #fbd38d;
+            color: #c05621;
+            cursor: not-allowed;
+        }
+        .class-card.locked .badge {
+            font-size: 11px;
+            background-color: #dd6b20;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 10px;
+        }
+
+        /* Στυλ αν το τμήμα έχει υποβληθεί οριστικά (Read-Only) */
+        .class-card.submitted {
+            background-color: #edf2f7;
+            border-color: #cbd5e1;
+            color: #718096;
+        }
+        .class-card.submitted .badge {
+            font-size: 11px;
+            background-color: #4a5568;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="navbar">
+        <div class="user-info">Καλωσήρθατε, <b>{{ username }}</b></div>
+        <div class="live-hour">🔔 Τρέχουσα Ώρα: {{ hour }}</div>
+        <a href="/logout" class="logout-btn">Αποσύνδεση</a>
+    </div>
+
+    <div class="container">
+        <h2>Επιλογή Τμήματος</h2>
+        <p class="subtitle">Πατήστε στο τμήμα σας για να ξεκινήσετε την καταχώριση απουσιών.</p>
+
+        <div class="grid">
+            {% for class in classes %}
+                
+                {% if class.name in submitted_classes %}
+                    <a href="/attendance/{{ class.name }}" class="class-card submitted">
+                        <span>{{ class.name }}</span>
+                        <span class="badge">🔒 Κλειδωμένο</span>
+                    </a>
+                
+                {% elif class.name in locked_classes and locked_classes[class.name] != username %}
+                    <a href="#" class="class-card locked" onclick="alert('Το τμήμα είναι κατειλημμένο από τον/την εκπαιδευτικό: {{ locked_classes[class.name] }}'); return false;">
+                        <span>{{ class.name }}</span>
+                        <span class="badge">⚠️ Σε χρήση</span>
+                    </a>
+                
+                {% else %}
+                    <a href="/attendance/{{ class.name }}" class="class-card available">
+                        <span>{{ class.name }}</span>
+                    </a>
+                {% endif %}
+
+            {% endfor %}
+        </div>
+    </div>
+
+</body>
+</html>
