@@ -67,7 +67,7 @@
     <div class="main-container">
         <h2>Τμήμα {{ class_name }} - {{ hour }} Ώρα</h2>
 
-        <div id="warning-msg" class="warning-banner">⚠️ Απομένουν λιγότερα από 5 λεπτά! Παρακαλώ ελέγξτε και υποβάλετε τις απουσίες.</div>
+        <div id="warning-msg" class="warning-banner">⚠️ Απομένουν λιγότερα από 10 λεπτά! Παρακαλώ ελέγξτε τις απουσίες.</div>
 
         {% for student in students %}
         <div class="student-card" id="card-{{ student.id }}">
@@ -79,61 +79,41 @@
         <button class="submit-btn" onclick="submitAttendance()">🔒 Οριστική Υποβολή & Αποστολή Email</button>
         
         <br>
-        <a href="/back-to-dashboard" class="back-link">← Επιστροφή στην επιλογή τμήματος</a>
+        <a href="/logout" class="back-link">← Επιστροφή στην επιλογή τμήματος</a>
     </div>
 
     <audio id="alert-sound" src="/static/alert.mp3" preload="auto"></audio>
 
     <script>
+        // Πίνακας που θα κρατάει τα IDs των μαθητών που λείπουν
         let absentStudents = []; 
-        // Διαβάζουμε από την Python αν η σελίδα πρέπει να είναι κλειδωμένη για ανάγνωση
-        let isSubmitted = {{ 'true' if is_readonly else 'false' }}; 
+        let isSubmitted = false; // Μεταβλητή για να ξέρουμε αν κλείδωσε η σελίδα
 
-        // Όταν φορτώνει η σελίδα, ελέγχουμε αν είναι Read-Only
-        window.onload = function() {
-            if (isSubmitted) {
-                const submitBtn = document.querySelector('.submit-btn');
-                submitBtn.style.backgroundColor = '#a0aec0';
-                submitBtn.style.cursor = 'default';
-                submitBtn.innerText = "🔒 Το τμήμα έχει υποβληθεί - Μόνο Ανάγνωση";
-                submitBtn.disabled = true;
-                
-                // Απενεργοποιούμε όλα τα κουμπιά των μαθητών
-                const buttons = document.querySelectorAll('.absence-btn');
-                buttons.forEach(btn => {
-                    btn.disabled = true;
-                    btn.innerText = "-";
-                    btn.style.backgroundColor = "#cbd5e1";
-                    btn.style.color = "#4a5568";
-                    btn.style.cursor = "default";
-                });
-            }
-        };
-
-        // 1. Επιλογή / Ακύρωση Απουσίας (Στάδιο 1)
+        // 1. Λειτουργία Επιλογής / Ακύρωσης Απουσίας (Toggle)
         function toggleAbsence(studentId) {
-    if (isSubmitted) return; // Αν έχει υποβληθεί, σταματάει εδώ
+            if (isSubmitted) return; // Αν έχει γίνει οριστική υποβολή, κλειδώνουν τα κουμπιά
 
-    const card = document.getElementById(`card-${studentId}`);
-    const btn = document.getElementById(`btn-${studentId}`);
-    
-    // Έλεγχος αν το ID υπάρχει ήδη στους απόντες
-    const index = absentStudents.indexOf(studentId);
-    
-    if (index === -1) {
-        absentStudents.push(studentId);
-        card.classList.add('marked-absent');
-        btn.classList.add('marked-style');
-        btn.innerText = "Επιλέχθηκε";
-    } else {
-        absentStudents.splice(index, 1);
-        card.classList.remove('marked-absent');
-        btn.classList.remove('marked-style');
-        btn.innerText = "Απών";
-    }
-}
+            const card = document.getElementById(`card-${studentId}`);
+            const btn = document.getElementById(`btn-${studentId}`);
+            
+            const index = absentStudents.indexOf(studentId);
+            
+            if (index === -1) {
+                // Αν δεν υπάρχει, τον βάζουμε στους απόντες (Κοκκινίζει η κάρτα)
+                absentStudents.push(studentId);
+                card.classList.add('marked-absent');
+                btn.classList.add('marked-style');
+                btn.innerText = "Επιλέχθηκε";
+            } else {
+                // Αν υπάρχει ήδη, τον βγάζουμε (Ακύρωση λάθους - Ξαναγίνεται λευκό)
+                absentStudents.splice(index, 1);
+                card.classList.remove('marked-absent');
+                btn.classList.remove('marked-style');
+                btn.innerText = "Απών";
+            }
+        }
 
-        // 2. Οριστική Υποβολή (Στάδιο 2)
+        // 2. Λειτουργία Οριστικής Υποβολής (Όταν πατηθεί το μεγάλο κουμπί)
         function submitAttendance() {
             if (isSubmitted) return;
             
@@ -146,25 +126,60 @@
                 fetch('/send-absence', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ 
-                        student_ids: absentStudents,
-                        class_name: "{{ class_name }}"
-                    })
+                    body: JSON.stringify({ student_ids: absentStudents }) // Στέλνουμε όλη τη λίστα μαζί
                 })
                 .then(res => res.json())
                 .then(data => {
                     if(data.status === 'success') {
                         alert(data.message);
-                        // Κάνουμε reload για να τραβήξει ο server την κατάσταση read-only και να κλειδώσει η οθόνη
-                        location.reload(); 
-                    } else { 
-                        alert(data.message); 
-                    }
+                        isSubmitted = true;
+                        document.getElementById('warning-msg').style.display = 'none';
+                        
+                        // Κλειδώνουμε οπτικά την οθόνη (Πρασινίζουν οι επιλεγμένοι απόντες)
+                        absentStudents.forEach(id => {
+                            document.getElementById(`card-${id}`).style.backgroundColor = '#d4edda';
+                            document.getElementById(`card-${id}`).style.borderColor = '#c3e6cb';
+                            document.getElementById(`btn-${id}`).style.backgroundColor = '#28a745';
+                            document.getElementById(`btn-${id}`).innerText = "Στάλθηκε";
+                        });
+                        
+                        // Απενεργοποιούμε το μεγάλο κουμπί
+                        const submitBtn = document.querySelector('.submit-btn');
+                        submitBtn.style.backgroundColor = '#a0aec0';
+                        submitBtn.innerText = "✓ Η απουσίες υποβλήθηκαν";
+                        submitBtn.disabled = true;
+                    } else { alert("Σφάλμα κατά την υποβολή."); }
                 });
             }
         }
 
-        // Ζωντανό Ρολόι στην μπάρα πλοήγησης
+        // Ρολόι και Ωράριο Προειδοποίησης (Όπως πριν)
         function updateClock() {
             const now = new Date();
-            const hours =
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            document.getElementById('nav-clock').innerText = `${hours}:${minutes}:${seconds}`;
+        }
+        setInterval(updateClock, 1000); updateClock();
+
+        const SCHOOL_SCHEDULE = {"1η":"09:00","2η":"09:50","3η":"10:45","4η":"11:40","5η":"12:35","6η":"13:25","7η":"14:10"};
+        const currentHourPeriod = "{{ hour }}";
+
+        function checkTimeRemaining() {
+            if (isSubmitted) return;
+            const endTimeStr = SCHOOL_SCHEDULE[currentHourPeriod];
+            if (!endTimeStr) return;
+            const now = new Date(); const [endHours, endMinutes] = endTimeStr.split(':').map(Number);
+            const endTime = new Date(); endTime.setHours(endHours, endMinutes, 0, 0);
+            const diffMinutes = Math.floor((endTime - now) / 1000 / 60);
+
+            if (diffMinutes >= 0 && diffMinutes <= 10) {
+                document.getElementById('warning-msg').style.display = 'block';
+                document.getElementById('alert-sound').play().catch(e => {});
+            }
+        }
+        setInterval(checkTimeRemaining, 30000); setTimeout(checkTimeRemaining, 2000);
+    </script>
+</body>
+</html>

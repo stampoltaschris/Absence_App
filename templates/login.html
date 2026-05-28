@@ -26,24 +26,13 @@
             const p = document.getElementById('password').value;
             fetch('/login', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded' // Αλλαγή σε form data
-                },
-                body: `username=${encodeURIComponent(u)}&password=${encodeURIComponent(p)}` // Αποστολή ως form data
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({username: u, password: p})
             })
-            .then(res => {
-                // Ελέγχουμε αν ο server έκανε redirect (επιτυχής σύνδεση)
-                if (res.redirected) {
-                    window.location.href = res.url;
-                    return;
-                }
-                // Αν δεν έγινε redirect, σημαίνει ότι υπάρχει μήνυμα λάθους (HTML)
-                return res.text(); // Διαβάζουμε την απάντηση ως κείμενο (HTML)
-            })
-            .then(text => {
-                if (text) { // Αν υπάρχει κείμενο, είναι το μήνυμα λάθους
-                    alert(text.replace(/<[^>]*>?/gm, '')); // Εμφανίζουμε το μήνυμα, αφαιρώντας τυχόν HTML tags
-                }
+            .then(res => res.json())
+            .then(data => {
+                if(data.status === 'success') window.location.href = '/dashboard';
+                else alert(data.message);
             });
         }
     </script>

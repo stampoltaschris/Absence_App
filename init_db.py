@@ -1,15 +1,8 @@
 import sqlite3
-import os
-from werkzeug.security import generate_password_hash
-
-basedir = os.path.abspath(os.path.dirname(__file__))
 
 def create_database():
-    conn = sqlite3.connect(os.path.join(basedir, 'database.db'))
+    conn = sqlite3.connect('database.db')
     cursor = conn.cursor()
-
-    # Ενεργοποίηση περιορισμών ξένου κλειδιού
-    cursor.execute('PRAGMA foreign_keys = ON;')
 
     # 1. Πίνακας Χρηστών (Καθηγητών)
     cursor.execute('''
@@ -36,10 +29,10 @@ def create_database():
         FOREIGN KEY(class_id) REFERENCES classes(id)
     )''')
 
-    # Εισαγωγή 2 Χρηστών με κρυπτογραφημένους κωδικούς
-    cursor.executemany('INSERT OR REPLACE INTO users (username, password) VALUES (?, ?)', [
-        ('teacher1', generate_password_hash('12345')),
-        ('teacher2', generate_password_hash('abcde'))
+    # Εισαγωγή 2 Χρηστών (Για απλότητα, οι κωδικοί είναι σε απλό κείμενο προς το παρόν)
+    cursor.executemany('INSERT OR IGNORE INTO users (username, password) VALUES (?, ?)', [
+        ('teacher1', '12345'),
+        ('teacher2', 'abcde')
     ])
 
     # Εισαγωγή 6 Τμημάτων
@@ -51,7 +44,6 @@ def create_database():
     cursor.execute('SELECT id, name FROM classes')
     classes_from_db = cursor.fetchall()
 
-    cursor.execute('DELETE FROM students') # Καθαρισμός για αποφυγή διπλότυπων
     for class_id, class_name in classes_from_db:
         for i in range(1, 6):
             student_name = f"Μαθητής {i} ({class_name})"

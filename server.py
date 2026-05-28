@@ -1,37 +1,22 @@
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
-from werkzeug.security import check_password_hash
 import sqlite3
 import smtplib
 import os
-from dotenv import load_dotenv
 from email.mime.text import MIMEText
-import time
 from datetime import datetime
 
-# Καθορισμός της διαδρομής του φακέλου της εφαρμογής
-basedir = os.path.abspath(os.path.dirname(__file__))
-load_dotenv(os.path.join(basedir, '.env'))
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+    USING_DOTENV = True
+except ImportError:
+    USING_DOTENV = False
 
 app = Flask(__name__)
 app.secret_key = 'super_secret_key_for_sessions'
 
 LOCKED_CLASSES = {}
 ACTIVE_SESSIONS = {}
-SUBMITTED_CLASSES = {} # { '1η': ['Α1', 'Β2'] }
-
-def cleanup_expired_sessions():
-    now = time.time()
-    timeout = 10 * 60 # 10 λεπτά σε δευτερόλεπτα
-    
-    # 1. Καθαρισμός Active Sessions εκπαιδευτικών
-    expired_users = [user for user, last_active in ACTIVE_SESSIONS.items() if now - last_active > timeout]
-    for user in expired_users:
-        del ACTIVE_SESSIONS[user]
-        
-    # 2. Καθαρισμός κλειδωμένων τμημάτων
-    expired_classes = [c_name for c_name, info in LOCKED_CLASSES.items() if now - info["last_activity"] > timeout]
-    for c_name in expired_classes:
-        del LOCKED_CLASSES[c_name]
 
 # ΣΥΝΑΡΤΗΣΗ ΑΥΤΟΜΑΤΟΥ ΥΠΟΛΟΓΙΣΜΟΥ ΔΙΔΑΚΤΙΚΗΣ ΩΡΑΣ
 def get_current_school_hour():
@@ -59,7 +44,7 @@ def get_current_school_hour():
         return "MANUAL" # Εκτός ωραρίου (π.χ. απόγευμα), ενεργοποιείται η χειροκίνητη επιλογή
 
 def get_db_connection():
-    conn = sqlite3.connect(os.path.join(basedir, 'database.db'))
+    conn = sqlite3.connect('database.db')
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -71,56 +56,36 @@ def index():
 
 @app.route('/login', methods=['POST'])
 def login():
-    username = request.form.get('username')
-    password = request.form.get('password')
+    data = request.json
+    username = data.get('username')
+    password = data.get('password')
+    
+    if username in ACTIVE_SESSIONS:
+        return jsonify({"status": "error", "message": "Αυτός ο λογαριασμός είναι ήδη συνδεδεμένος σε άλλη συσκευή!"})
     
     conn = get_db_connection()
-    user = conn.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
+    user = conn.execute('SELECT * FROM users WHERE username = ? AND password = ?', (username, password)).fetchone()
     conn.close()
     
-    if user and check_password_hash(user['password'], password):
+    if user:
+        ACTIVE_SESSIONS[username] = True
         session['username'] = username
-        ACTIVE_SESSIONS[username] = time.time()
-        return redirect(url_for('dashboard'))
-    else:
-        return "<h3>Λάθος στοιχεία σύνδεσης.</h3><a href='/'>Επιστροφή</a>", 401
-
-
+        return jsonify({"status": "success"})
+    return jsonify({"status": "error", "message": "Λάθος username ή password"})
 
 @app.route('/dashboard')
 def dashboard():
-    cleanup_expired_sessions() # <--- Καθαρισμός
     if 'username' not in session:
         return redirect(url_for('index'))
-    
-    current_user = session.get('username')
-    
-    # Αν ο χρήστης πετάχτηκε από το timeout, τον αποσυνδέουμε και από το cookie
-    if current_user not in ACTIVE_SESSIONS:
-        session.clear()
-        return redirect(url_for('index'))
         
-    # Ανανέωση χρόνου δραστηριότητας του χρήστη
-    ACTIVE_SESSIONS[current_user] = time.time()
-    
-    hour = get_current_school_hour()
-    session['current_hour'] = hour
-    
     conn = get_db_connection()
     classes = conn.execute('SELECT * FROM classes').fetchall()
     conn.close()
     
-    submitted_this_hour = SUBMITTED_CLASSES.get(hour, [])
+    # Υπολογίζουμε την αυτόματη ώρα
+    auto_hour = get_current_school_hour()
     
-    # Επειδή άλλαξε η δομή του LOCKED_CLASSES, στέλνουμε στο template μόνο τα ονόματα των χρηστών
-    just_names_locked = {k: v["user"] for k, v in LOCKED_CLASSES.items()}
-    
-    return render_template('dashboard.html', 
-                           username=current_user, 
-                           classes=classes, 
-                           hour=hour, 
-                           locked_classes=just_names_locked, 
-                           submitted_classes=submitted_this_hour)
+    return render_template('dashboard.html', username=session['username'], classes=classes, locked=LOCKED_CLASSES, auto_hour=auto_hour)
 
 @app.route('/select-class', methods=['POST'])
 def select_class():
@@ -132,78 +97,49 @@ def select_class():
     hour = data.get('hour') # Μπορεί να έρθει από το αυτόματο ή το χειροκίνητο μενού
     current_user = session['username']
     
-    if class_name in LOCKED_CLASSES and LOCKED_CLASSES[class_name].get("user") != current_user:
-        return jsonify({"status": "error", "message": f"Το τμήμα {class_name} είναι ήδη κατειλημμένο από τον χρήστη {LOCKED_CLASSES[class_name]['user']}!"})
+    if class_name in LOCKED_CLASSES and LOCKED_CLASSES[class_name] != current_user:
+        return jsonify({"status": "error", "message": f"Το τμήμα {class_name} είναι ήδη κατειλημμένο από τον χρήστη {LOCKED_CLASSES[class_name]}!"})
     
-    # Εναρμόνιση δομής με την υπόλοιπη εφαρμογή
-    LOCKED_CLASSES[class_name] = {
-        "user": current_user,
-        "last_activity": time.time()
-    }
+    LOCKED_CLASSES[class_name] = current_user
     session['current_class'] = class_name
     session['current_hour'] = hour
     
     return jsonify({"status": "success"})
 
-@app.route('/attendance/<class_name>')
-def attendance(class_name):
-    cleanup_expired_sessions()  # Καθαρισμός ληγμένων συνεδριών
-    
-    if 'username' not in session:
+@app.route('/attendance')
+def attendance():
+    if 'username' not in session or 'current_class' not in session:
         return redirect(url_for('index'))
         
-    current_user = session.get('username')
-    if current_user not in ACTIVE_SESSIONS:
-        session.clear()
-        return redirect(url_for('index'))
-        
-    ACTIVE_SESSIONS[current_user] = time.time()
-    hour = session.get('current_hour', '1η')
-    is_already_submitted = class_name in SUBMITTED_CLASSES.get(hour, [])
+    class_name = session['current_class']
+    hour = session['current_hour']
     
-    # Έλεγχος διπλοκράτησης με τη νέα δομή
-    for c_name, info in LOCKED_CLASSES.items():
-        if info.get("user") == current_user and c_name != class_name:
-            if class_name not in SUBMITTED_CLASSES.get(hour, []):
-                return f"<h3>Σφάλμα: Είστε ήδη στο τμήμα {c_name}.</h3><a href='/back-to-dashboard'>Επιστροφή</a>"
-
-    # Έλεγχος αν άλλος είναι μέσα (με ασφαλή χρήση .get)
-    if class_name in LOCKED_CLASSES and LOCKED_CLASSES[class_name].get("user") != current_user and not is_already_submitted:
-        other_user = LOCKED_CLASSES[class_name].get("user", "άλλος εκπαιδευτικός")
-        return f"<h3>Σφάλμα: Ο/Η {other_user} είναι ήδη μέσα!</h3><a href='/back-to-dashboard'>Επιστροφή</a>"
-        
-    if not is_already_submitted:
-        # Κλείδωμα με αποθήκευση του user και του time
-        LOCKED_CLASSES[class_name] = {"user": current_user, "last_activity": time.time()}
-        
     conn = get_db_connection()
-    students = conn.execute('SELECT * FROM students WHERE class_id = (SELECT id FROM classes WHERE name = ?)', (class_name,)).fetchall()
+    students = conn.execute('''
+        SELECT students.id, students.name, students.email 
+        FROM students 
+        JOIN classes ON students.class_id = classes.id 
+        WHERE classes.name = ?''', (class_name,)).fetchall()
     conn.close()
     
-    # 🌟 Διορθώθηκε η στοίχιση: Τώρα η return βρίσκεται κανονικά εντός της συνάρτησης
-    return render_template('attendance.html', 
-                           username=current_user, 
-                           class_name=class_name, 
-                           students=students, 
-                           hour=hour, 
-                           is_readonly=is_already_submitted)
+    return render_template('attendance.html', username=session['username'], students=students, class_name=class_name, hour=hour)
+# ΝΕΟ ΜΟΝΟΠΑΤΙ: Επιστροφή στο Dashboard ξεκλειδώνοντας μόνο το τμήμα
 @app.route('/back-to-dashboard')
 def back_to_dashboard():
     current_user = session.get('username')
-    hour = session.get('current_hour', '1η')
+    # Ξεκλειδώνουμε μόνο το τμήμα που είχε κρατήσει ο συγκεκριμένος χρήστης
     if current_user:
-        # Αφαιρούμε το κλείδωμα ΜΟΝΟ αν το τμήμα δεν έχει υποβληθεί οριστικά
-        to_remove = [k for k, v in LOCKED_CLASSES.items() if v.get("user") == current_user]
+        to_remove = [k for k, v in LOCKED_CLASSES.items() if v == current_user]
         for k in to_remove:
-            if k not in SUBMITTED_CLASSES.get(hour, []):
-                del LOCKED_CLASSES[k]
+            del LOCKED_CLASSES[k]
+            
+    # Στέλνουμε τον καθηγητή πίσω στο Dashboard (όχι στο Login!)
     return redirect(url_for('dashboard'))
-
 @app.route('/logout')
 def logout():
     current_user = session.get('username')
     if current_user:
-        to_remove = [k for k, v in LOCKED_CLASSES.items() if v.get("user") == current_user]
+        to_remove = [k for k, v in LOCKED_CLASSES.items() if v == current_user]
         for k in to_remove:
             del LOCKED_CLASSES[k]
         if current_user in ACTIVE_SESSIONS:
@@ -241,6 +177,7 @@ def send_absence():
         "status": "success", 
         "message": f"Η υποβολή ολοκληρώθηκε! Στάλθηκαν {success_count} email απουσίας."
     })
+
 def send_email(student_name, to_email, hour):
     # Η Python διαβάζει τα στοιχεία σου κρυφά από το αρχείο .env
     sender_email = os.getenv("EMAIL_USER")
@@ -270,6 +207,3 @@ def send_email(student_name, to_email, hour):
     except Exception as e:
         print(f"Σφάλμα κατά την αποστολή του email: {e}")
         return False
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)

@@ -5,147 +5,118 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - Επιλογή Τμήματος</title>
     <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f0f2f5;
-            margin: 0;
-            padding: 0;
-            text-align: center;
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            text-align: center; 
+            margin: 0; padding: 0; background-color: #f0f2f5; color: #333;
         }
         .navbar {
-            background-color: #fff;
-            padding: 15px 30px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            background-color: #fff; padding: 15px 30px; display: flex;
+            justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         }
         .user-info { font-size: 16px; color: #4a5568; }
-        .live-hour {
-            font-size: 18px;
-            font-weight: bold;
-            color: #2b6cb0;
-            background-color: #ebf8ff;
-            padding: 5px 15px;
-            border-radius: 20px;
-            border: 1px solid #bee3f8;
+        .live-clock {
+            font-size: 18px; font-weight: bold; color: #2c3e50;
+            background-color: #edf2f7; padding: 5px 15px; border-radius: 20px; border: 1px solid #e2e8f0;
         }
         .logout-btn {
-            background-color: #dc3545;
-            color: white;
-            text-decoration: none;
-            padding: 8px 16px;
-            border-radius: 6px;
-            font-weight: bold;
-            font-size: 14px;
+            background-color: #dc3545; color: white; text-decoration: none;
+            padding: 8px 16px; border-radius: 6px; font-weight: bold; font-size: 14px; transition: background-color 0.2s;
         }
-        .container {
-            max-width: 800px;
-            margin: 40px auto;
-            padding: 0 20px;
-        }
-        h2 { color: #2c3e50; margin-bottom: 10px; }
-        p.subtitle { color: #718096; margin-bottom: 30px; }
+        .logout-btn:hover { background-color: #bd2130; }
+        .main-container { padding: 30px 20px; }
+        h2 { color: #2c3e50; margin-top: 0; }
         
-        /* Το πλέγμα με τα κουμπιά των τμημάτων */
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-            gap: 20px;
+        /* Στυλ για την ένδειξη της αυτόματης ώρας */
+        .auto-hour-banner {
+            background-color: #007bff; color: white; padding: 12px;
+            max-width: 450px; margin: 15px auto; border-radius: 8px; font-size: 18px; font-weight: bold;
         }
         
-        .class-card {
-            text-decoration: none;
-            color: #2d3748;
-            background: white;
-            padding: 25px 15px;
-            border-radius: 10px;
-            font-size: 20px;
-            font-weight: bold;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-            transition: transform 0.2s, box-shadow 0.2s, background-color 0.2s;
-            border: 2px solid transparent;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-        }
+        label { font-weight: bold; color: #4a5568; }
+        select { padding: 10px; font-size: 16px; margin: 10px; border-radius: 6px; border: 1px solid #cbd5e1; }
         
-        /* Στυλ για Διαθέσιμο Τμήμα */
-        .class-card.available:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 6px 12px rgba(0,0,0,0.1);
-            background-color: #f7fafc;
-            border-color: #4299e1;
+        .grid { display: grid; grid-template-columns: repeat(2, 1fr); max-width: 450px; margin: 25px auto; gap: 15px; }
+        .class-btn { 
+            padding: 25px; font-size: 18px; font-weight: bold; background-color: #fff; 
+            border: 2px solid #007bff; color: #007bff; border-radius: 12px; cursor: pointer; transition: all 0.2s ease;
         }
-
-        /* Στυλ αν κάποιος άλλος καθηγητής είναι ήδη μέσα στο τμήμα */
-        .class-card.locked {
-            background-color: #feebc8;
-            border-color: #fbd38d;
-            color: #c05621;
-            cursor: not-allowed;
-        }
-        .class-card.locked .badge {
-            font-size: 11px;
-            background-color: #dd6b20;
-            color: white;
-            padding: 3px 8px;
-            border-radius: 10px;
-        }
-
-        /* Στυλ αν το τμήμα έχει υποβληθεί οριστικά (Read-Only) */
-        .class-card.submitted {
-            background-color: #edf2f7;
-            border-color: #cbd5e1;
-            color: #718096;
-        }
-        .class-card.submitted .badge {
-            font-size: 11px;
-            background-color: #4a5568;
-            color: white;
-            padding: 3px 8px;
-            border-radius: 10px;
-        }
+        .class-btn:hover:not(.locked) { background-color: #007bff; color: white; transform: translateY(-2px); }
+        .class-btn.locked { background-color: #e2e8f0; border-color: #cbd5e1; cursor: not-allowed; color: #94a3b8; }
+        .locked-info { font-size: 12px; color: #ef4444; display: block; margin-top: 5px; }
     </style>
 </head>
 <body>
 
     <div class="navbar">
-        <div class="user-info">Καλωσήρθατε, <b>{{ username }}</b></div>
-        <div class="live-hour">🔔 Τρέχουσα Ώρα: {{ hour }}</div>
-        <a href="/logout" class="logout-btn">Αποσύνδεση</a>
+        <div class="user-info">Σύνδεση ως: <b>{{ username }}</b></div>
+        <div class="live-clock" id="nav-clock">00:00:00</div>
+        <a href="/back-to-dashboard" class="back-link">← Επιστροφή στην επιλογή τμήματος</a>
     </div>
 
-    <div class="container">
+    <div class="main-container">
         <h2>Επιλογή Τμήματος</h2>
-        <p class="subtitle">Πατήστε στο τμήμα σας για να ξεκινήσετε την καταχώριση απουσιών.</p>
+        
+        {% if auto_hour != "MANUAL" %}
+            <div class="auto-hour-banner">
+                🔔 Αυτόματη Επιλογή: {{ auto_hour }} Διδακτική Ώρα
+            </div>
+            <input type="hidden" id="hour-selection" value="{{ auto_hour }}">
+        {% else %}
+            <div style="margin-bottom: 15px; color: #718096;">
+                ℹ️ Εκτός σχολικού ωραρίου. Επιλέξτε ώρα χειροκίνητα για δοκιμή:
+            </div>
+            <select id="hour-selection">
+                <option value="1η">1η Ώρα</option>
+                <option value="2η">2η Ώρα</option>
+                <option value="3η">3η Ώρα</option>
+                <option value="4η">4η Ώρα</option>
+                <option value="5η">5η Ώρα</option>
+                <option value="6η">6η Ώρα</option>
+                <option value="7η">7η Ώρα</option>
+            </select>
+        {% endif %}
 
         <div class="grid">
-            {% for class in classes %}
-                
-                {% if class.name in submitted_classes %}
-                    <a href="/attendance/{{ class.name }}" class="class-card submitted">
-                        <span>{{ class.name }}</span>
-                        <span class="badge">🔒 Κλειδωμένο</span>
-                    </a>
-                
-                {% elif class.name in locked_classes and locked_classes[class.name] != username %}
-                    <a href="#" class="class-card locked" onclick="alert('Το τμήμα είναι κατειλημμένο από τον/την εκπαιδευτικό: {{ locked_classes[class.name] }}'); return false;">
-                        <span>{{ class.name }}</span>
-                        <span class="badge">⚠️ Σε χρήση</span>
-                    </a>
-                
-                {% else %}
-                    <a href="/attendance/{{ class.name }}" class="class-card available">
-                        <span>{{ class.name }}</span>
-                    </a>
-                {% endif %}
-
+            {% for c in classes %}
+                <button class="class-btn {% if c.name in locked and locked[c.name] != username %}locked{% endif %}" 
+                        onclick="selectClass('{{ c.name }}')">
+                    {{ c.name }}
+                    {% if c.name in locked and locked[c.name] != username %}
+                        <span class="locked-info">(Απασχολημένο από {{ locked[c.name] }})</span>
+                    {% endif %}
+                </button>
             {% endfor %}
         </div>
     </div>
 
+    <script>
+        function updateClock() {
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            document.getElementById('nav-clock').innerText = `${hours}:${minutes}:${seconds}`;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        function selectClass(className) {
+            // Παίρνει την τιμή είτε από το κρυφό input (αυτόματη) είτε από το select (χειροκίνητη)
+            const h = document.getElementById('hour-selection').value;
+            
+            fetch('/select-class', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({class_name: className, hour: h})
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.status === 'success') {
+                    window.location.href = '/attendance';
+                } else { alert(data.message); }
+            });
+        }
+    </script>
 </body>
 </html>
