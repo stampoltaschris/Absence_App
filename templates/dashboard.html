@@ -82,14 +82,22 @@
 
         <div class="grid">
             {% for c in classes %}
-                <button class="class-btn {% if c.name in locked and locked[c.name] != username %}locked{% endif %}" 
-                        onclick="selectClass('{{ c.name }}')">
-                    {{ c.name }}
-                    {% if c.name in locked and locked[c.name] != username %}
-                        <span class="locked-info">(Απασχολημένο από {{ locked[c.name] }})</span>
-                    {% endif %}
-                </button>
-            {% endfor %}
+    {% set is_my_current_class = (session.get('current_class') == c.name) %}
+    {% set has_any_active_class = (session.get('current_class') is not none) %}
+    
+    <button 
+        id="btn-{{ c.name }}"
+        class="class-btn"
+        {% if has_any_active_class and not is_my_current_class %}
+            disabled 
+            style="opacity: 0.4; cursor: not-allowed;"
+        {% endif %}
+        onclick="selectClass('{{ c.name }}', {{ 'true' if locked.get(c.name) and locked.get(c.name) != username else 'false' }})"
+    >
+        {{ c.name }}
+        {% if is_my_current_class %} (Ενεργό) {% endif %}
+    </button>
+{% endfor %}
         </div>
     </div>
 
@@ -104,22 +112,53 @@
         setInterval(updateClock, 1000);
         updateClock();
 
-        function selectClass(className) {
-            // Παίρνει την τιμή είτε από το κρυφό input (αυτόματη) είτε από το select (χειροκίνητη)
-            const h = document.getElementById('hour-selection').value;
-            
-            fetch('/select-class', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({class_name: className, hour: h})
-            })
-            .then(res => res.json())
-            .then(data => {
-                if(data.status === 'success') {
-                    window.location.href = '/attendance';
-                } else { alert(data.message); }
-            });
+        let selectedClassOnce = null;
+
+        function selectClass(className, isLockedByOther) {
+    // 1. Αν το τμήμα είναι κλειδωμένο από άλλον χρήστη, σταμάτα
+    if (isLockedByOther) {
+        alert("Αυτό το τμήμα είναι κατειλημμένο!");
+        return;
+    }
+
+    const button = document.getElementById(`btn-${className}`);
+
+    // 2. ΕΛΕΓΧΟΣ ΔΙΠΛΟΥ TAP
+    if (selectedClassOnce !== className) {
+        // Καθαρισμός προηγούμενου button αν είχε γίνει single tap κάπου αλλού
+        if (selectedClassOnce) {
+            const prevButton = document.getElementById(`btn-${selectedClassOnce}`);
+            if (prevButton) prevButton.style.backgroundColor = ""; // επαναφορά χρώματος
         }
+        
+        // Πρώτο Tap: Άλλαξε χρώμα στο κουμπί και περίμενε
+        selectedClassOnce = className;
+        button.style.backgroundColor = "#ecc94b"; // Κίτρινο χρώμα προειδοποίησης/επιβεβαίωσης
+        button.innerText = `${className} (Ξαναπατήστε για επιβεβαίωση)`;
+        return;
+    }
+
+    // Δεύτερο Tap: Προχωράμε στην κανονική αποστολή στο backend
+    const currentHour = "{{ auto_hour }}"; 
+
+    fetch('/select-class', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ class_name: className, hour: currentHour })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === 'success') {
+            window.location.href = '/attendance';
+        } else {
+            alert(data.message);
+            // Επαναφορά σε περίπτωση αποτυχίας
+            button.style.backgroundColor = "";
+            selectedClassOnce = null;
+        }
+    });
+}
+
     </script>
 </body>
 </html>

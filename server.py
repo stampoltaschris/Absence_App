@@ -42,7 +42,7 @@ def get_current_school_hour():
         return "MANUAL" 
 
 def get_db_connection():
-    conn = sqlite3.connect('database.db')
+    conn = sqlite3.connect('database.db', timeout=20)
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -130,12 +130,9 @@ def attendance():
 # 🌟 ΔΙΟΡΘΩΘΗΚΕ: Αφαιρέθηκε το "a" που έσπαγε το compile
 @app.route('/back-to-dashboard')
 def back_to_dashboard():
-    current_user = session.get('username')
-    if current_user:
-        to_remove = [k for k, v in LOCKED_CLASSES.items() if v == current_user]
-        for k in to_remove:
-            del LOCKED_CLASSES[k]
-            
+    # 🌟 Πλέον ΔΕΝ διαγράφουμε το τμήμα από το LOCKED_CLASSES.
+    # Απλά επιστρέφουμε τον καθηγητή στο Dashboard.
+    # Επειδή το session['current_class'] υπάρχει ακόμα, η HTML θα του κλειδώσει τα υπόλοιπα κουμπιά!
     return redirect(url_for('dashboard'))
 
 @app.route('/logout')
