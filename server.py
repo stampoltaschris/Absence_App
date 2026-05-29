@@ -81,11 +81,22 @@ def dashboard():
         
     conn = get_db_connection()
     classes = conn.execute('SELECT * FROM classes').fetchall()
+    # 🌟 ΝΕΟΣ ΕΛΕΓΧΟΣ: Βρίσκουμε ποια τμήματα έχουν ήδη υποβάλει για ΤΩΡΑ
+    current_date = datetime.now().strftime('%Y-%m-%d')
+    auto_hour = get_current_school_hour()
+    
+    done_rows = conn.execute(
+        'SELECT class_name FROM submitted_attendance WHERE school_hour = ? AND date = ?',
+        (auto_hour, current_date)
+    ).fetchall()
+    
+    # Μετατρέπουμε τα αποτελέσματα σε μια απλή λίστα Python, π.χ. ['Α1', 'Β2']
+    submitted_classes = [row['class_name'] for row in done_rows]
     conn.close()
     
     auto_hour = get_current_school_hour()
     
-    return render_template('dashboard.html', username=session['username'], classes=classes, locked=LOCKED_CLASSES, auto_hour=auto_hour)
+    return render_template('dashboard.html', username=session['username'], classes=classes, locked=LOCKED_CLASSES, auto_hour=auto_hour,submitted_classes=submitted_classes)
 
 @app.route('/select-class', methods=['POST'])
 def select_class():
@@ -149,34 +160,100 @@ def logout():
 
 @app.route('/send-absence', methods=['POST'])
 def send_absence():
+    # 1. Έλεγχος αν ο χρήστης είναι συνδεδεμένος
     if 'username' not in session:
         return jsonify({"status": "error", "message": "Μη εξουσιοδοτημένος χρήστης"}), 401
         
     data = request.json
     if not data:
-        return jsonify({"status": "error", "message": "Missing JSON data"}), 400
+        return jsonify({"status": "error", "message": "Δεν ελήφθησαν δεδομένα JSON"}), 400
         
-    student_ids = data.get('student_ids', []) 
+    student_ids = data.get('student_ids', []) # Λίστα με τα ID των απόντων (π.χ. [3, 5])
     hour = session.get('current_hour', '1η')
+    class_name = session.get('current_class')
     
-    if not student_ids:
-        return jsonify({"status": "success", "message": "Δεν σημειώθηκαν απουσίες. Ο έλεγχος ολοκληρώθηκε!"})
+    # Αν για κάποιο λόγο χάθηκε το session του τμήματος
+    if not class_name:
+        return jsonify({"status": "error", "message": "Δεν βρέθηκε ενεργό τμήμα στο session"}), 400
+
+    # Διαβάζουμε τα στοιχεία email από το αρχείο .env
+    sender_email = os.getenv("EMAIL_USER")
+    sender_password = os.getenv("EMAIL_PASS")
+    
+    if not sender_email or not sender_password:
+        print("Σφάλμα: Δεν βρέθηκαν τα στοιχεία EMAIL_USER ή EMAIL_PASS στο αρχείο .env")
+        return jsonify({"status": "error", "message": "Σφάλμα παραμετροποίησης Email στο διακομιστή"}), 500
 
     conn = get_db_connection()
     success_count = 0
     
-    for s_id in student_ids:
-        student = conn.execute('SELECT * FROM students WHERE id = ?', (s_id,)).fetchone()
-        if student:
-            email_status = send_email(student['name'], student['email'], hour)
-            if email_status:
-                success_count += 1
+    # ----------------------------------------------------------------------
+    # ΛΟΓΙΚΗ ΑΠΟΣΤΟΛΗΣ EMAIL (Βελτιστοποιημένη για ταυτόχρονη χρήση/τάμπλετ)
+    # ----------------------------------------------------------------------
+    if student_ids:
+        try:
+            # Ανοίγουμε τη σύνδεση με την Google ΜΙΑ ΦΟΡΑ πριν το loop
+            with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+                server.login(sender_email, sender_password)
                 
+                # Loop μόνο για τους μαθητές που είναι στη λίστα των απόντων
+                for s_id in student_ids:
+                    student = conn.execute('SELECT * FROM students WHERE id = ?', (s_id,)).fetchone()
+                    if student and student['email']:
+                        subject = f"Ενημέρωση Απουσίας - {hour} Ώρα"
+                        body = f"Αγαπητέ κηδεμόνα,\n\nΣας ενημερώνουμε ότι ο/η μαθητής/τρια {student['name']} σημειώθηκε ως απών/ούσα την {hour} διδακτική ώρα."
+                        
+                        # Δημιουργία μηνύματος
+                        msg = MIMEText(body, _charset='utf-8')
+                        msg['Subject'] = subject
+                        msg['From'] = sender_email
+                        msg['To'] = student['email']
+                        
+                        # Αποστολή
+                        server.sendmail(sender_email, student['email'], msg.as_string())
+                        success_count += 1
+                        print(f"Το email για τον μαθητή {student['name']} στάλθηκε επιτυχώς!")
+                        
+        except Exception as e:
+            print(f"Σφάλμα κατά την ομαδική αποστολή email: {e}")
+            conn.close()
+            return jsonify({"status": "error", "message": f"Αποτυχία αποστολής email: {str(e)}"}), 500
+
+    # ----------------------------------------------------------------------
+    # ΛΟΓΙΚΗ ΜΟΝΙΜΟΥ ΚΛΕΙΔΩΜΑΤΟΣ ΤΜΗΜΑΤΟΣ ΓΙΑ ΤΗ ΣΥΓΚΕΚΡΙΜΕΝΗ ΩΡΑ
+    # ----------------------------------------------------------------------
+    try:
+        current_date = datetime.now().strftime('%Y-%m-%d')
+        current_hour = get_current_school_hour() # Παίρνουμε την πραγματική ώρα συστήματος
+        
+        # Εισάγουμε την εγγραφή στον πίνακα για να ξέρει το Dashboard ότι το τμήμα τελείωσε
+        conn.execute(
+            'INSERT INTO submitted_attendance (class_name, school_hour, date) VALUES (?, ?, ?)',
+            (class_name, current_hour, current_date)
+        )
+        conn.commit()
+        
+        # Ξεκλειδώνουμε το τμήμα από τη live λίστα LOCKED_CLASSES, αφού ο καθηγητής ολοκλήρωσε
+        current_user = session.get('username')
+        to_remove = [k for k, v in LOCKED_CLASSES.items() if v == current_user]
+        for k in to_remove:
+            del LOCKED_CLASSES[k]
+            
+        # Καθαρίζουμε τις πληροφορίες του τμήματος από το session του συγκεκριμένου καθηγητή
+        session.pop('current_class', None)
+        session.pop('current_hour', None)
+        
+    except Exception as e:
+        print(f"Σφάλμα κατά το κλείδωμα της ώρας στη βάση: {e}")
+        conn.close()
+        return jsonify({"status": "error", "message": "Οι απουσίες στάλθηκαν αλλά απέτυχε το κλείδωμα της ώρας στη βάση"}), 500
+
     conn.close()
     
+    # Επιστροφή επιτυχίας στην JavaScript
     return jsonify({
         "status": "success", 
-        "message": f"Η υποβολή ολοκληρώθηκε! Στάλθηκαν {success_count} email απουσίας."
+        "message": f"Η υποβολή ολοκληρώθηκε! Στάλθηκαν {success_count} email απουσίας και το τμήμα {class_name} κλείδωσε για την {current_hour} ώρα."
     })
 
 def send_email(student_name, to_email, hour):
@@ -206,4 +283,17 @@ def send_email(student_name, to_email, hour):
         return False
 
 if __name__ == '__main__':
+
+    conn = sqlite3.connect('database.db')
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS submitted_attendance (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            class_name TEXT,
+            school_hour TEXT,
+            date TEXT
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
     app.run(debug=True, host='0.0.0.0', port=5000)
