@@ -18,6 +18,7 @@ app.secret_key = 'super_secret_key_for_sessions'
 
 LOCKED_CLASSES = {}
 ACTIVE_SESSIONS = {}
+ADMIN_PASSWORD = "12345" 
 
 # =========================================================================
 # ΣΥΝΑΡΤΗΣΗ ΑΥΤΟΜΑΤΟΥ ΥΠΟΛΟΓΙΣΜΟΥ ΔΙΔΑΚΤΙΚΗΣ ΩΡΑΣ (Διορθωμένα όρια)
@@ -88,6 +89,11 @@ def get_db_connection():
 def show_login():
     auto_hour = get_current_school_hour()
     return render_template('login.html', auto_hour=auto_hour)
+
+# 1. Εμφάνιση της σελίδας Admin
+@app.route('/admin')
+def admin_panel():
+    return render_template('admin.html')
 
 @app.route('/login', methods=['POST'])
 def process_login():
@@ -321,6 +327,53 @@ def send_email(student_name, to_email, hour):
         return True
     except:
         return False
+
+
+# 2. Ταυτοποίηση Διαχειριστή (Login)
+@app.route('/admin-login', methods=['POST'])
+def admin_login_process():
+    data = request.json
+    password = data.get('password')
+    
+    if password == ADMIN_PASSWORD:
+        session['is_admin'] = True
+        return jsonify({"status": "success"})
+    return jsonify({"status": "error", "message": "Λάθος κωδικός πρόσβασης διαχειριστή!"})
+
+# 3. Αυτόματη Δημιουργία Τμήματος στη Βάση Δεδομένων
+@app.route('/admin/add-class', methods=['POST'])
+def admin_add_class():
+    # Ασφάλεια: Έλεγχος αν είναι όντως συνδεδεμένος ως admin
+    if not session.get('is_admin'):
+        return jsonify({"status": "error", "message": "Μη εξουσιοδοτημένη πρόσβαση"}), 403
+        
+    data = request.json
+    class_name = data.get('class_name', '').strip().upper() # Μετατροπή σε κεφαλαία (π.χ. α1 -> Α1)
+    
+    if not class_name:
+        return jsonify({"status": "error", "message": "Το όνομα τμήματος δεν μπορεί να είναι κενό"}), 400
+        
+    conn = get_db_connection()
+    try:
+        # Έλεγχος αν το τμήμα υπάρχει ήδη στη βάση
+        existing = conn.execute('SELECT id FROM classes WHERE name = ?', (class_name,)).fetchone()
+        if existing:
+            conn.close()
+            return jsonify({"status": "error", "message": "Αυτό το τμήμα υπάρχει ήδη στη βάση δεδομένων!"})
+            
+        # Αυτόματο INSERT στον πίνακα classes
+        conn.execute('INSERT INTO classes (name) VALUES (?)', (class_name,))
+        conn.commit()
+        conn.close()
+        
+        print(f"📦 Ο Admin δημιούργησε επιτυχώς το νέο τμήμα: {class_name}")
+        return jsonify({"status": "success"})
+        
+    except Exception as e:
+        conn.close()
+        return jsonify({"status": "error", "message": f"Σφάλμα βάσης δεδομένων: {str(e)}"}), 500
+
+
 
 if __name__ == '__main__':
     conn = sqlite3.connect('database.db')

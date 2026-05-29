@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Διαχείριση - Απουσιολόγιο</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f7fafc; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .admin-container { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; }
+        input { width: 90%; padding: 12px; margin: 10px 0; border: 1px solid #cbd5e0; border-radius: 6px; font-size: 16px; }
+        button { width: 96%; padding: 12px; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: bold; margin-top: 10px; }
+        .btn-primary { background-color: #4a5568; }
+        .btn-primary:hover { background-color: #2d3748; }
+        .btn-danger { background-color: #e53e3e; margin-top: 20px; }
+        .panel-box { display: none; text-align: left; }
+        .status-msg { margin-top: 15px; font-weight: bold; color: #2f855a; }
+    </style>
+</head>
+<body>
+
+    <div class="admin-container">
+        <div id="login-box">
+            <h2>Κλείδωμα Διαχειριστή</h2>
+            <p style="color: #718096; font-size: 14px;">Εισάγετε τον κωδικό master για πρόσβαση στα εργαλεία.</p>
+            <input type="password" id="admin-password" placeholder="Κωδικός Διαχειριστή">
+            <button onclick="adminLogin()" class="btn-primary">Είσοδος</button>
+        </div>
+
+        <div id="panel-box" class="panel-box">
+            <h2 style="text-align: center;">Πάνελ Διαχείρισης</h2>
+            <hr style="border: 0; border-top: 1px solid #e2e8f0; margin-bottom: 20px;">
+            
+            <h3>➕ Προσθήκη Νέου Τμήματος</h3>
+            <label for="new-class-name" style="font-weight: bold; font-size: 14px;">Όνομα Τμήματος (π.χ. Α4, Β3):</label>
+            <input type="text" id="new-class-name" placeholder="π.χ. Γ3">
+            <button onclick="addClass()" class="btn-primary">Δημιουργία Τμήματος</button>
+            
+            <div id="status-message" class="status-msg"></div>
+            
+            <button onclick="adminLogout()" class="btn-danger">Έξοδος Διαχειριστή</button>
+        </div>
+    </div>
+
+    <script>
+        // Έλεγχος αν ο admin είναι ήδη συνδεδεμένος από πριν (session)
+        window.onload = function() {
+            if ("{{ session.get('is_admin') }}" === "True") {
+                document.getElementById('login-box').style.display = 'none';
+                document.getElementById('panel-box').style.display = 'block';
+            }
+        };
+
+        function adminLogin() {
+            const password = document.getElementById('admin-password').value;
+            
+            fetch('/admin-login', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ password: password })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    document.getElementById('login-box').style.display = 'none';
+                    document.getElementById('panel-box').style.display = 'block';
+                } else {
+                    alert(data.message);
+                }
+            });
+        }
+
+        function addClass() {
+            const className = document.getElementById('new-class-name').value.trim();
+            if (!className) {
+                alert("Παρακαλώ δώστε ένα όνομα τμήματος!");
+                return;
+            }
+
+            fetch('/admin/add-class', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ class_name: className })
+            })
+            .then(res => res.json())
+            .then(data => {
+                const msgDiv = document.getElementById('status-message');
+                if (data.status === 'success') {
+                    msgDiv.style.color = '#2f855a';
+                    msgDiv.innerText = `✅ Το τμήμα ${className} δημιουργήθηκε με επιτυχία!`;
+                    document.getElementById('new-class-name').value = ''; // καθαρισμός input
+                } else {
+                    msgDiv.style.color = '#e53e3e';
+                    msgDiv.innerText = `❌ Σφάλμα: ${data.message}`;
+                }
+            });
+        }
+
+        function adminLogout() {
+            fetch('/logout') // Χρησιμοποιούμε το υπάρχον logout για καθαρισμό
+            .then(() => {
+                window.location.reload();
+            });
+        }
+    </script>
+</body>
+</html>
