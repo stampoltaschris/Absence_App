@@ -10,20 +10,58 @@
         input { width: 90%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 6px; }
         button { width: 96%; padding: 10px; background-color: #007bff; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; }
         button:hover { background-color: #0056b3; }
+        
+        /* 🌟 Στυλ για το όμορφο πλαίσιο του διαλείμματος */
+        .break-box { 
+            padding: 20px; 
+            background-color: #feebc8; 
+            color: #c05621; 
+            border: 1px solid #fbd38d; 
+            border-radius: 8px; 
+            font-weight: bold; 
+            font-size: 18px; 
+            margin: 15px 0;
+        }
+        .break-subtitle { 
+            font-size: 13px; 
+            font-weight: normal; 
+            color: #7b341e; 
+            margin-top: 8px; 
+            line-height: 1.4;
+        }
     </style>
 </head>
 <body>
     <div class="login-card">
         <h2>Είσοδος Εκπαιδευτικού</h2>
-        <input type="text" id="username" placeholder="Username">
-        <input type="password" id="password" placeholder="Password">
-        <button onclick="login()">Σύνδεση</button>
+        
+        {% if auto_hour == "Διάλειμμα" %}
+            <div class="break-box">
+                ⏳ ΔΙΑΛΕΙΜΜΑ
+                <div class="break-subtitle">
+                    Η εφαρμογή είναι προσωρινά κλειδωμένη.<br>
+                    Η σύνδεση θα είναι διαθέσιμη από το 1ο λεπτό της επόμενης ώρας.
+                </div>
+            </div>
+        {% else %}
+            <input type="text" id="username" placeholder="Username">
+            <input type="password" id="password" placeholder="Password">
+            <button onclick="login()">Σύνδεση</button>
+        {% endif %}
     </div>
 
     <script>
         function login() {
+            // 🌟 2η Δικλείδα Ασφαλείας: Έλεγχος μέσω JS αν η Flask λέει ότι είναι διάλειμμα
+            const currentHour = "{{ auto_hour }}";
+            if (currentHour === "Διάλειμμα") {
+                alert("Η σύνδεση δεν επιτρέπεται κατά τη διάρκεια του διαλείμματος!");
+                return;
+            }
+
             const u = document.getElementById('username').value;
             const p = document.getElementById('password').value;
+            
             fetch('/login', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
@@ -31,8 +69,11 @@
             })
             .then(res => res.json())
             .then(data => {
-                if(data.status === 'success') window.location.href = '/dashboard';
-                else alert(data.message);
+                if(data.status === 'success') {
+                    window.location.href = '/dashboard';
+                } else {
+                    alert(data.message);
+                }
             });
         }
     </script>

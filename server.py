@@ -19,41 +19,83 @@ app.secret_key = 'super_secret_key_for_sessions'
 LOCKED_CLASSES = {}
 ACTIVE_SESSIONS = {}
 
-# ΣΥΝΑΡΤΗΣΗ ΑΥΤΟΜΑΤΟΥ ΥΠΟΛΟΓΙΣΜΟΥ ΔΙΔΑΚΤΙΚΗΣ ΩΡΑΣ
+# =========================================================================
+# ΣΥΝΑΡΤΗΣΗ ΑΥΤΟΜΑΤΟΥ ΥΠΟΛΟΓΙΣΜΟΥ ΔΙΔΑΚΤΙΚΗΣ ΩΡΑΣ (Διορθωμένα όρια)
+# =========================================================================
 def get_current_school_hour():
-    now = datetime.now()
-    current_minutes = now.hour * 60 + now.minute
+    now = datetime.now().time()
+    current_time_str = now.strftime("%H:%M")
     
-    if 0 <= current_minutes <= 9 * 60:            
+    # 1η Ώρα (08:15 - 09:00)
+    if "08:15" <= current_time_str < "09:00":
         return "1η"
-    elif 9 * 60 < current_minutes <= 9 * 60 + 50:  
+    # 1ο Διάλειμμα (09:00 - 09:10)
+    elif "09:00" <= current_time_str < "09:10":
+        return "Διάλειμμα"
+        
+    # 2η Ώρα (09:10 - 09:55)
+    elif "09:10" <= current_time_str < "09:55":
         return "2η"
-    elif 9 * 60 + 50 < current_minutes <= 10 * 60 + 45: 
+    # 2ο Διάλειμμα (09:55 - 10:05)
+    elif "09:55" <= current_time_str < "10:05":
+        return "Διάλειμμα"
+        
+    # 3η Ώρα (10:05 - 10:50)
+    elif "10:05" <= current_time_str < "10:50":
         return "3η"
-    elif 10 * 60 + 45 < current_minutes <= 11 * 60 + 40: 
+    # 3ο Διάλειμμα (10:50 - 11:00)
+    elif "10:50" <= current_time_str < "11:00":
+        return "Διάλειμμα"
+        
+    # 4η Ώρα (11:00 - 11:45)
+    elif "11:00" <= current_time_str < "11:45":
         return "4η"
-    elif 11 * 60 + 40 < current_minutes <= 12 * 60 + 35: 
+    # 4ο Διάλειμμα (11:45 - 11:55)
+    elif "11:45" <= current_time_str < "11:55":
+        return "Διάλειμμα"
+        
+    # 5η Ώρα (11:55 - 12:40)
+    elif "11:55" <= current_time_str < "12:40":
         return "5η"
-    elif 12 * 60 + 35 < current_minutes <= 13 * 60 + 25: 
+    # 5ο Διάλειμμα (12:40 - 12:50)
+    elif "12:40" <= current_time_str < "12:50":
+        return "Διάλειμμα"
+        
+    # 6η Ώρα (12:50 - 13:35)
+    elif "12:50" <= current_time_str < "13:35":
         return "6η"
-    elif 13 * 60 + 25 < current_minutes <= 14 * 60 + 10: 
+    # 6ο Διάλειμμα (13:35 - 13:40)
+    elif "13:35" <= current_time_str < "13:40":
+        return "Διάλειμμα"
+        
+    # 7η Ώρα (13:40 - 14:25)
+    elif "13:40" <= current_time_str < "14:25":
         return "7η"
+        
     else:
-        return "MANUAL" 
+        return "Εκτός Ωραρίου"
 
 def get_db_connection():
     conn = sqlite3.connect('database.db', timeout=20)
     conn.row_factory = sqlite3.Row
     return conn
 
+# =========================================================================
+# ROUTES ΓΙΑ LOGIN (GET και POST με διαφορετικά ονόματα συναρτήσεων!)
+# =========================================================================
 @app.route('/')
-def index():
-    if 'username' in session:
-        return redirect(url_for('dashboard'))
-    return render_template('login.html')
+@app.route('/login', methods=['GET'])
+def show_login():
+    auto_hour = get_current_school_hour()
+    return render_template('login.html', auto_hour=auto_hour)
 
 @app.route('/login', methods=['POST'])
-def login():
+def process_login():
+    # 🌟 Έλεγχος Διαλείμματος
+    auto_hour = get_current_school_hour()
+    if auto_hour == "Διάλειμμα":
+        return jsonify({"status": "error", "message": "Διάλειμμα! Η σύνδεση επιτρέπεται μόνο κατά τη διάρκεια των μαθημάτων."}), 403
+        
     data = request.json
     if not data:
         return jsonify({"status": "error", "message": "Δεν ελήφθησαν δεδομένα JSON (Missing Content-Type)"}), 400
@@ -69,39 +111,56 @@ def login():
     conn.close()
     
     if user:
-        ACTIVE_SESSIONS[username] =   time.time()
+        ACTIVE_SESSIONS[username] = time.time()
         session['username'] = username
         return jsonify({"status": "success"})
     return jsonify({"status": "error", "message": "Λάθος username ή password"})
 
+# =========================================================================
+# ROUTE ΓΙΑ DASHBOARD (Καθαρισμένο και σωστά δομημένο)
+# =========================================================================
 @app.route('/dashboard')
 def dashboard():
     if 'username' not in session:
-        return redirect(url_for('index'))
+        return redirect(url_for('show_login'))
         
+    auto_hour = get_current_school_hour()
+    
+    # 🌟 Αυτόματο Logout αν χτυπήσει κουδούνι για διάλειμμα
+    if auto_hour == "Διάλειμμα":
+        current_user = session.get('username')
+        if current_user:
+            to_remove = [k for k, v in LOCKED_CLASSES.items() if v == current_user]
+            for k in to_remove:
+                del LOCKED_CLASSES[k]
+            if current_user in ACTIVE_SESSIONS:
+                del ACTIVE_SESSIONS[current_user]
+        session.clear()
+        return render_template('login.html', auto_hour=auto_hour, error="Το μάθημα τελείωσε. Έγινε αυτόματη αποσύνδεση λόγω διαλείμματος.")
+
+    # Κανονική ροή μαθήματος
     current_user = session.get('username')
     conn = get_db_connection()
     classes = conn.execute('SELECT * FROM classes').fetchall()
+
+    submitted_classes = []
+    has_submitted = False
     
-    current_date = datetime.now().strftime('%Y-%m-%d')
-    auto_hour = get_current_school_hour()
-    
-    # 1. Βρίσκουμε ΟΛΑ τα τμήματα που έχουν κλείσει (για να τα δουν όλοι γκρι)
-    done_rows = conn.execute(
-        'SELECT class_name FROM submitted_attendance WHERE school_hour = ? AND date = ?',
-        (auto_hour, current_date)
-    ).fetchall()
-    submitted_classes = [row['class_name'] for row in done_rows]
-    
-    # 2. 🌟 ΝΕΟΣ ΕΛΕΓΧΟΣ: Έχει κάνει υποβολή ο ΣΥΓΚΕΚΡΙΜΕΝΟΣ καθηγητής αυτή την ώρα;
-    teacher_check = conn.execute(
-        'SELECT id FROM submitted_attendance WHERE school_hour = ? AND date = ? AND username = ?',
-        (auto_hour, current_date, current_user)
-    ).fetchone()
-    
-    # Αν βρει έστω και μία εγγραφή, το has_submitted γίνεται True, αλλιώς False
-    has_submitted = True if teacher_check else False
-    
+    if auto_hour != "Εκτός Ωραρίου":
+        current_date = datetime.now().strftime('%Y-%m-%d')
+        
+        done_rows = conn.execute(
+            'SELECT class_name FROM submitted_attendance WHERE school_hour = ? AND date = ?',
+            (auto_hour, current_date)
+        ).fetchall()
+        submitted_classes = [row['class_name'] for row in done_rows]
+        
+        teacher_check = conn.execute(
+            'SELECT id FROM submitted_attendance WHERE school_hour = ? AND date = ? AND username = ?',
+            (auto_hour, current_date, current_user)
+        ).fetchone()
+        has_submitted = True if teacher_check else False
+        
     conn.close()
     
     return render_template(
@@ -111,8 +170,9 @@ def dashboard():
         locked=LOCKED_CLASSES, 
         auto_hour=auto_hour,
         submitted_classes=submitted_classes,
-        has_submitted=has_submitted  # 🌟 Το στέλνουμε στην HTML
+        has_submitted=has_submitted
     )
+
 @app.route('/select-class', methods=['POST'])
 def select_class():
     if 'username' not in session:
@@ -138,7 +198,7 @@ def select_class():
 @app.route('/attendance')
 def attendance():
     if 'username' not in session or 'current_class' not in session:
-        return redirect(url_for('index'))
+        return redirect(url_for('show_login'))
         
     class_name = session['current_class']
     hour = session['current_hour']
@@ -153,12 +213,8 @@ def attendance():
     
     return render_template('attendance.html', username=session['username'], students=students, class_name=class_name, hour=hour)
 
-# 🌟 ΔΙΟΡΘΩΘΗΚΕ: Αφαιρέθηκε το "a" που έσπαγε το compile
 @app.route('/back-to-dashboard')
 def back_to_dashboard():
-    # 🌟 Πλέον ΔΕΝ διαγράφουμε το τμήμα από το LOCKED_CLASSES.
-    # Απλά επιστρέφουμε τον καθηγητή στο Dashboard.
-    # Επειδή το session['current_class'] υπάρχει ακόμα, η HTML θα του κλειδώσει τα υπόλοιπα κουμπιά!
     return redirect(url_for('dashboard'))
 
 @app.route('/logout')
@@ -171,11 +227,10 @@ def logout():
         if current_user in ACTIVE_SESSIONS:
             del ACTIVE_SESSIONS[current_user]
     session.clear()
-    return redirect(url_for('index'))
+    return redirect(url_for('show_login'))
 
 @app.route('/send-absence', methods=['POST'])
 def send_absence():
-    # 1. Έλεγχος αν ο χρήστης είναι συνδεδεμένος
     if 'username' not in session:
         return jsonify({"status": "error", "message": "Μη εξουσιοδοτημένος χρήστης"}), 401
         
@@ -183,130 +238,100 @@ def send_absence():
     if not data:
         return jsonify({"status": "error", "message": "Δεν ελήφθησαν δεδομένα JSON"}), 400
         
-    student_ids = data.get('student_ids', []) # Λίστα με τα ID των απόντων (π.χ. [3, 5])
+    student_ids = data.get('student_ids', [])
     hour = session.get('current_hour', '1η')
     class_name = session.get('current_class')
     
-    # Αν για κάποιο λόγο χάθηκε το session του τμήματος
     if not class_name:
         return jsonify({"status": "error", "message": "Δεν βρέθηκε ενεργό τμήμα στο session"}), 400
 
-    # Διαβάζουμε τα στοιχεία email από το αρχείο .env
     sender_email = os.getenv("EMAIL_USER")
     sender_password = os.getenv("EMAIL_PASS")
     
     if not sender_email or not sender_password:
-        print("Σφάλμα: Δεν βρέθηκαν τα στοιχεία EMAIL_USER ή EMAIL_PASS στο αρχείο .env")
         return jsonify({"status": "error", "message": "Σφάλμα παραμετροποίησης Email στο διακομιστή"}), 500
 
     conn = get_db_connection()
     success_count = 0
     
-    # ----------------------------------------------------------------------
-    # ΛΟΓΙΚΗ ΑΠΟΣΤΟΛΗΣ EMAIL (Βελτιστοποιημένη για ταυτόχρονη χρήση/τάμπλετ)
-    # ----------------------------------------------------------------------
     if student_ids:
         try:
-            # Ανοίγουμε τη σύνδεση με την Google ΜΙΑ ΦΟΡΑ πριν το loop
             with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
                 server.login(sender_email, sender_password)
-                
-                # Loop μόνο για τους μαθητές που είναι στη λίστα των απόντων
                 for s_id in student_ids:
                     student = conn.execute('SELECT * FROM students WHERE id = ?', (s_id,)).fetchone()
                     if student and student['email']:
                         subject = f"Ενημέρωση Απουσίας - {hour} Ώρα"
                         body = f"Αγαπητέ κηδεμόνα,\n\nΣας ενημερώνουμε ότι ο/η μαθητής/τρια {student['name']} σημειώθηκε ως απών/ούσα την {hour} διδακτική ώρα."
                         
-                        # Δημιουργία μηνύματος
                         msg = MIMEText(body, _charset='utf-8')
                         msg['Subject'] = subject
                         msg['From'] = sender_email
                         msg['To'] = student['email']
                         
-                        # Αποστολή
                         server.sendmail(sender_email, student['email'], msg.as_string())
                         success_count += 1
-                        print(f"Το email για τον μαθητή {student['name']} στάλθηκε επιτυχώς!")
                         
         except Exception as e:
-            print(f"Σφάλμα κατά την ομαδική αποστολή email: {e}")
             conn.close()
             return jsonify({"status": "error", "message": f"Αποτυχία αποστολής email: {str(e)}"}), 500
 
-    # ----------------------------------------------------------------------
-    # ΛΟΓΙΚΗ ΜΟΝΙΜΟΥ ΚΛΕΙΔΩΜΑΤΟΣ ΤΜΗΜΑΤΟΣ ΓΙΑ ΤΗ ΣΥΓΚΕΚΡΙΜΕΝΗ ΩΡΑ
-    # ----------------------------------------------------------------------
+    # Μόνιμο κλείδωμα
     try:
         current_date = datetime.now().strftime('%Y-%m-%d')
-        current_hour = get_current_school_hour() # Παίρνουμε την πραγματική ώρα συστήματος
-        
-        # Εισάγουμε την εγγραφή στον πίνακα για να ξέρει το Dashboard ότι το τμήμα τελείωσε
+        current_hour = get_current_school_hour()
         current_user = session.get('username')
+        
         conn.execute(
-            'INSERT INTO submitted_attendance (class_name, school_hour, date,username) VALUES (?, ?, ?,?)',
-            (class_name, current_hour, current_date,current_user)
+            'INSERT INTO submitted_attendance (class_name, school_hour, date, username) VALUES (?, ?, ?, ?)',
+            (class_name, current_hour, current_date, current_user)
         )
         conn.commit()
         
-        # Ξεκλειδώνουμε το τμήμα από τη live λίστα LOCKED_CLASSES, αφού ο καθηγητής ολοκλήρωσε
-        current_user = session.get('username')
         to_remove = [k for k, v in LOCKED_CLASSES.items() if v == current_user]
         for k in to_remove:
             del LOCKED_CLASSES[k]
             
-        # Καθαρίζουμε τις πληροφορίες του τμήματος από το session του συγκεκριμένου καθηγητή
         session.pop('current_class', None)
         session.pop('current_hour', None)
         
     except Exception as e:
-        print(f"Σφάλμα κατά το κλείδωμα της ώρας στη βάση: {e}")
         conn.close()
-        return jsonify({"status": "error", "message": "Οι απουσίες στάλθηκαν αλλά απέτυχε το κλείδωμα της ώρας στη βάση"}), 500
+        return jsonify({"status": "error", "message": "Οι απουσίες στάλθηκαν αλλά απέτυχε το κλείδωμα"}), 500
 
     conn.close()
-    
-    # Επιστροφή επιτυχίας στην JavaScript
-    return jsonify({
-        "status": "success", 
-        "message": f"Η υποβολή ολοκληρώθηκε! Στάλθηκαν {success_count} email απουσίας και το τμήμα {class_name} κλείδωσε για την {current_hour} ώρα."
-    })
+    return jsonify({"status": "success", "message": f"Η υποβολή ολοκληρώθηκε! Στάλθηκαν {success_count} email."})
 
+# Βοηθητική συνάρτηση (αν χρειάζεται αλλού)
 def send_email(student_name, to_email, hour):
     sender_email = os.getenv("EMAIL_USER")
     sender_password = os.getenv("EMAIL_PASS")
-    
     if not sender_email or not sender_password:
-        print("Σφάλμα: Δεν βρέθηκαν τα στοιχεία EMAIL_USER ή EMAIL_PASS στο αρχείο .env")
         return False
-
     subject = f"Ενημέρωση Απουσίας - {hour} Ώρα"
     body = f"Αγαπητέ κηδεμόνα,\n\nΣας ενημερώνουμε ότι ο/η μαθητής/τρια {student_name} σημειώθηκε ως απών/ούσα την {hour} διδακτική ώρα."
-    
     msg = MIMEText(body, _charset='utf-8')
     msg['Subject'] = subject
     msg['From'] = sender_email
     msg['To'] = to_email
-    
     try:
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
             server.login(sender_email, sender_password)
             server.sendmail(sender_email, to_email, msg.as_string())
-        print(f"Το email για τον μαθητή {student_name} στάλθηκε επιτυχώς!")
         return True
-    except Exception as e:
-        print(f"Σφάλμα κατά την αποστολή του email: {e}")
+    except:
         return False
 
 if __name__ == '__main__':
-
     conn = sqlite3.connect('database.db')
+    # 🌟 ΔΙΟΡΘΩΘΗΚΕ: Προστέθηκε η στήλη username TEXT στο CREATE TABLE
     conn.execute('''
         CREATE TABLE IF NOT EXISTS submitted_attendance (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             class_name TEXT,
             school_hour TEXT,
-            date TEXT
+            date TEXT,
+            username TEXT
         )
     ''')
     conn.commit()

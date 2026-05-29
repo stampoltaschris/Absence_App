@@ -84,13 +84,17 @@
             {% for c in classes %}
     {% set is_my_current_class = (session.get('current_class') == c.name) %}
     {% set has_any_active_class = (session.get('current_class') is not none) %}
-    
     {% set is_already_submitted = (c.name in submitted_classes) %}
     
+    {% set is_breaktime = (auto_hour == "Διάλειμμα") %}
+
     <button 
         id="btn-{{ c.name }}"
         class="class-btn"
-        {% if is_already_submitted %}
+        {% if is_breaktime %}
+            disabled 
+            style="background-color: #cbd5e0; color: #4a5568; cursor: not-allowed; opacity: 0.6;"
+        {% elif is_already_submitted %}
             disabled 
             style="background-color: #cbd5e0; color: #718096; cursor: not-allowed; opacity: 0.7;"
         {% elif has_submitted %}
@@ -102,7 +106,9 @@
         {% endif %}
         onclick="selectClass('{{ c.name }}', {{ 'true' if locked.get(c.name) and locked.get(c.name) != username else 'false' }})"
     >
-        {% if is_already_submitted %}
+        {% if is_breaktime %}
+            {{ c.name }} (Διάλειμμα)
+        {% elif is_already_submitted %}
             {{ c.name }} (Έχει γίνει καταχώριση για αυτήν την ώρα)
         {% elif has_submitted %}
             {{ c.name }} (Μη διαθέσιμο - Ολοκληρώθηκε η υποβολή σας)
