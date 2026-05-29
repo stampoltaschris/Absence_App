@@ -79,25 +79,40 @@ def dashboard():
     if 'username' not in session:
         return redirect(url_for('index'))
         
+    current_user = session.get('username')
     conn = get_db_connection()
     classes = conn.execute('SELECT * FROM classes').fetchall()
-    # 🌟 ΝΕΟΣ ΕΛΕΓΧΟΣ: Βρίσκουμε ποια τμήματα έχουν ήδη υποβάλει για ΤΩΡΑ
+    
     current_date = datetime.now().strftime('%Y-%m-%d')
     auto_hour = get_current_school_hour()
     
+    # 1. Βρίσκουμε ΟΛΑ τα τμήματα που έχουν κλείσει (για να τα δουν όλοι γκρι)
     done_rows = conn.execute(
         'SELECT class_name FROM submitted_attendance WHERE school_hour = ? AND date = ?',
         (auto_hour, current_date)
     ).fetchall()
-    
-    # Μετατρέπουμε τα αποτελέσματα σε μια απλή λίστα Python, π.χ. ['Α1', 'Β2']
     submitted_classes = [row['class_name'] for row in done_rows]
+    
+    # 2. 🌟 ΝΕΟΣ ΕΛΕΓΧΟΣ: Έχει κάνει υποβολή ο ΣΥΓΚΕΚΡΙΜΕΝΟΣ καθηγητής αυτή την ώρα;
+    teacher_check = conn.execute(
+        'SELECT id FROM submitted_attendance WHERE school_hour = ? AND date = ? AND username = ?',
+        (auto_hour, current_date, current_user)
+    ).fetchone()
+    
+    # Αν βρει έστω και μία εγγραφή, το has_submitted γίνεται True, αλλιώς False
+    has_submitted = True if teacher_check else False
+    
     conn.close()
     
-    auto_hour = get_current_school_hour()
-    
-    return render_template('dashboard.html', username=session['username'], classes=classes, locked=LOCKED_CLASSES, auto_hour=auto_hour,submitted_classes=submitted_classes)
-
+    return render_template(
+        'dashboard.html', 
+        username=current_user, 
+        classes=classes, 
+        locked=LOCKED_CLASSES, 
+        auto_hour=auto_hour,
+        submitted_classes=submitted_classes,
+        has_submitted=has_submitted  # 🌟 Το στέλνουμε στην HTML
+    )
 @app.route('/select-class', methods=['POST'])
 def select_class():
     if 'username' not in session:
@@ -227,9 +242,10 @@ def send_absence():
         current_hour = get_current_school_hour() # Παίρνουμε την πραγματική ώρα συστήματος
         
         # Εισάγουμε την εγγραφή στον πίνακα για να ξέρει το Dashboard ότι το τμήμα τελείωσε
+        current_user = session.get('username')
         conn.execute(
-            'INSERT INTO submitted_attendance (class_name, school_hour, date) VALUES (?, ?, ?)',
-            (class_name, current_hour, current_date)
+            'INSERT INTO submitted_attendance (class_name, school_hour, date,username) VALUES (?, ?, ?,?)',
+            (class_name, current_hour, current_date,current_user)
         )
         conn.commit()
         

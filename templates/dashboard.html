@@ -84,13 +84,18 @@
             {% for c in classes %}
     {% set is_my_current_class = (session.get('current_class') == c.name) %}
     {% set has_any_active_class = (session.get('current_class') is not none) %}
+    
     {% set is_already_submitted = (c.name in submitted_classes) %}
+    
     <button 
         id="btn-{{ c.name }}"
         class="class-btn"
         {% if is_already_submitted %}
             disabled 
             style="background-color: #cbd5e0; color: #718096; cursor: not-allowed; opacity: 0.7;"
+        {% elif has_submitted %}
+            disabled 
+            style="background-color: #e2e8f0; color: #a0aec0; cursor: not-allowed; opacity: 0.5;"
         {% elif has_any_active_class and not is_my_current_class %}
             disabled 
             style="opacity: 0.4; cursor: not-allowed;"
@@ -99,6 +104,8 @@
     >
         {% if is_already_submitted %}
             {{ c.name }} (Έχει γίνει καταχώριση για αυτήν την ώρα)
+        {% elif has_submitted %}
+            {{ c.name }} (Μη διαθέσιμο - Ολοκληρώθηκε η υποβολή σας)
         {% else %}
             {{ c.name }} {% if is_my_current_class %} (Ενεργό) {% endif %}
         {% endif %}
