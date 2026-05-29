@@ -1,3 +1,4 @@
+import time
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 import sqlite3
 import smtplib
@@ -68,7 +69,7 @@ def login():
     conn.close()
     
     if user:
-        ACTIVE_SESSIONS[username] = True
+        ACTIVE_SESSIONS[username] =   time.time()
         session['username'] = username
         return jsonify({"status": "success"})
     return jsonify({"status": "error", "message": "Λάθος username ή password"})
