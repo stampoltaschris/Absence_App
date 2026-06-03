@@ -30,10 +30,15 @@
             <h2 style="text-align: center;">Πάνελ Διαχείρισης</h2>
             <hr style="border: 0; border-top: 1px solid #e2e8f0; margin-bottom: 20px;">
             
-            <h3>➕ Προσθήκη Νέου Τμήματος</h3>
-            <label for="new-class-name" style="font-weight: bold; font-size: 14px;">Όνομα Τμήματος (π.χ. Α4, Β3):</label>
+            <h3>➕ Προσθήκη Νέου Τμήματος & Μαθητών</h3>
+            <label for="new-class-name" style="font-weight: bold; font-size: 14px;">Όνομα Τμήματος (π.χ. Α1, Β2):</label>
             <input type="text" id="new-class-name" placeholder="π.χ. Γ3">
-            <button onclick="addClass()" class="btn-primary">Δημιουργία Τμήματος</button>
+            
+            <label style="font-weight: bold; font-size: 14px; display: block; margin-top: 15px;">Αρχείο Excel Μαθητών (Προαιρετικό):</label>
+            <input type="file" id="excel-file" accept=".xlsx, .xls" style="border: none; padding: 5px 0;">
+            <p style="color: #718096; font-size: 12px; margin-top: -5px;">Το Excel πρέπει να έχει στήλες: <strong>Ονοματεπώνυμο</strong> και <strong>Email</strong></p>
+            
+            <button onclick="addClassWithStudents()" class="btn-primary">Δημιουργία Τμήματος & Εισαγωγή</button>
             
             <div id="status-message" class="status-msg"></div>
             
@@ -69,29 +74,45 @@
             });
         }
 
-        function addClass() {
-            const className = document.getElementById('new-class-name').value.trim();
+      function addClassWithStudents() {
+            const className = document.getElementById('new-class-name').value.trim().toUpperCase();
+            const fileInput = document.getElementById('excel-file');
+            const msgDiv = document.getElementById('status-message');
+            
             if (!className) {
                 alert("Παρακαλώ δώστε ένα όνομα τμήματος!");
                 return;
             }
 
+            // Χρησιμοποιούμε FormData επειδή στέλνουμε αρχείο (όχι απλό JSON)
+            const formData = new FormData();
+            formData.append('class_name', className);
+            if (fileInput.files.length > 0) {
+                formData.append('excel_file', fileInput.files[0]);
+            }
+
+            msgDiv.style.color = '#4a5568';
+            msgDiv.innerText = "⏳ Γίνεται επεξεργασία... Παρακαλώ περιμένετε.";
+
             fetch('/admin/add-class', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ class_name: className })
+                body: formData // Το FormData θέτει αυτόματα τα σωστά headers
             })
             .then(res => res.json())
             .then(data => {
-                const msgDiv = document.getElementById('status-message');
                 if (data.status === 'success') {
                     msgDiv.style.color = '#2f855a';
-                    msgDiv.innerText = `✅ Το τμήμα ${className} δημιουργήθηκε με επιτυχία!`;
-                    document.getElementById('new-class-name').value = ''; // καθαρισμός input
+                    msgDiv.innerText = `✅ ${data.message}`;
+                    document.getElementById('new-class-name').value = ''; 
+                    fileInput.value = ''; // Καθαρισμός αρχείου
                 } else {
                     msgDiv.style.color = '#e53e3e';
                     msgDiv.innerText = `❌ Σφάλμα: ${data.message}`;
                 }
+            })
+            .catch(err => {
+                msgDiv.style.color = '#e53e3e';
+                msgDiv.innerText = "❌ Αποτυχία σύνδεσης με τον διακομιστή.";
             });
         }
 

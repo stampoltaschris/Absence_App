@@ -5,6 +5,7 @@ import smtplib
 import os
 from email.mime.text import MIMEText
 from datetime import datetime
+from openpyxl import load_workbook
 
 try:
     from dotenv import load_dotenv
@@ -350,36 +351,78 @@ def admin_login_process():
 
 # 3. Αυτόματη Δημιουργία Τμήματος στη Βάση Δεδομένων
 @app.route('/admin/add-class', methods=['POST'])
+# 🌟 ΝΕΟ & ΑΝΑΒΑΘΜΙΣΜΕΝΟ: Δημιουργία Τμήματος και αυτόματο parsing Excel μαθητών
+
+
+@app.route('/admin/add-class', methods=['POST'])
 def admin_add_class():
-    # Ασφάλεια: Έλεγχος αν είναι όντως συνδεδεμένος ως admin
     if not session.get('is_admin'):
         return jsonify({"status": "error", "message": "Μη εξουσιοδοτημένη πρόσβαση"}), 403
         
-    data = request.json
-    class_name = data.get('class_name', '').strip().upper() # Μετατροπή σε κεφαλαία (π.χ. α1 -> Α1)
+    # Επειδή δεχόμαστε FormData, διαβάζουμε με request.form και request.files
+    class_name = request.form.get('class_name', '').strip().upper()
+    excel_file = request.files.get('excel_file')
     
     if not class_name:
         return jsonify({"status": "error", "message": "Το όνομα τμήματος δεν μπορεί να είναι κενό"}), 400
         
     conn = get_db_connection()
     try:
-        # Έλεγχος αν το τμήμα υπάρχει ήδη στη βάση
+        # 1. Έλεγχος αν το τμήμα υπάρχει ήδη
         existing = conn.execute('SELECT id FROM classes WHERE name = ?', (class_name,)).fetchone()
         if existing:
             conn.close()
-            return jsonify({"status": "error", "message": "Αυτό το τμήμα υπάρχει ήδη στη βάση δεδομένων!"})
+            return jsonify({"status": "error", "message": f"Το τμήμα {class_name} υπάρχει ήδη στη βάση!"})
             
-        # Αυτόματο INSERT στον πίνακα classes
-        conn.execute('INSERT INTO classes (name) VALUES (?)', (class_name,))
+        # 2. Δημιουργία του τμήματος στον πίνακα classes
+        cursor = conn.cursor()
+        cursor.execute('INSERT INTO classes (name) VALUES (?)', (class_name,))
+        class_id = cursor.lastrowid # Παίρνουμε το ID του τμήματος που μόλις φτιάξαμε
+        
+        students_added = 0
+        
+        # 3. Αν ο χρήστης ανέβασε αρχείο Excel, ξεκινάει το parsing
+        if excel_file and excel_file.filename != '':
+            # Φορτώνουμε το Excel απευθείας από τη μνήμη (χωρίς να το σώσουμε στο δίσκο)
+            wb = load_workbook(excel_file, data_only=True)
+            sheet = wb.active # Παίρνουμε το πρώτο ενεργό φύλλο
+            
+            # Υποθέτουμε ότι: 
+            # Γραμμή 1 = Τίτλοι (Ονοματεπώνυμο, Email)
+            # Γραμμή 2 και μετά = Δεδομένα μαθητών
+            for row in sheet.iter_rows(min_row=2, max_row=sheet.max_row, values_only=True):
+                # Αν η γραμμή είναι εντελώς άδεια, την προσπερνάμε
+                if not row or row[0] is None:
+                    continue
+                
+                student_name = str(row[0]).strip()
+                # Αν δεν υπάρχει email στο Excel, βάζουμε κενό ή None
+                student_email = str(row[1]).strip() if len(row) > 1 and row[1] is not None else ""
+                
+                # Εισαγωγή του μαθητή στη βάση, συνδεδεμένο με το class_id
+                cursor.execute(
+                    'INSERT INTO students (name, email, class_id) VALUES (?, ?, ?)',
+                    (student_name, student_email, class_id)
+                )
+                students_added += 1
+                
         conn.commit()
         conn.close()
         
-        print(f"📦 Ο Admin δημιούργησε επιτυχώς το νέο τμήμα: {class_name}")
-        return jsonify({"status": "success"})
+        # Διαμόρφωση μηνύματος επιτυχίας
+        msg = f"Το τμήμα {class_name} δημιουργήθηκε!"
+        if students_added > 0:
+            msg += f" Εισήχθησαν επιτυχώς {students_added} μαθητές από το Excel."
+        else:
+            msg += " Δεν εντοπίστηκαν μαθητές για εισαγωγή."
+            
+        print(f"📦 Admin Panel: {msg}")
+        return jsonify({"status": "success", "message": msg})
         
     except Exception as e:
         conn.close()
-        return jsonify({"status": "error", "message": f"Σφάλμα βάσης δεδομένων: {str(e)}"}), 500
+        print(f"❌ Σφάλμα κατά την εισαγωγή από το Excel: {e}")
+        return jsonify({"status": "error", "message": f"Σφάλμα κατά την επεξεργασία του Excel: {str(e)}"}), 500
 
 
 
