@@ -1,0 +1,17 @@
+{
+  "short_name": "Απουσιολόγιο",
+  "name": "Σύστημα Καταχώρισης Απουσιών",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3475/3475143.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#f0f2f5",
+  "theme_color": "#007bff",
+  "display": "standalone",
+  "orientation": "portrait"
+}

@@ -1,5 +1,5 @@
 import time
-from flask import Flask, render_template, request, jsonify, session, redirect, url_for
+from flask import Flask, render_template, request, jsonify, send_from_directory ,session, redirect, url_for
 import sqlite3
 import smtplib
 import os
@@ -19,6 +19,14 @@ app.secret_key = 'super_secret_key_for_sessions'
 LOCKED_CLASSES = {}
 ACTIVE_SESSIONS = {}
 ADMIN_PASSWORD = "12345" 
+
+@app.route('/manifest.json')
+def serve_manifest():
+    return app.send_static_file('manifest.json') if os.path.exists('static/manifest.json') else send_from_directory('.', 'manifest.json')
+
+@app.route('/service-worker.js')
+def serve_sw():
+    return send_from_directory('.', 'service-worker.js')
 
 # =========================================================================
 # ΣΥΝΑΡΤΗΣΗ ΑΥΤΟΜΑΤΟΥ ΥΠΟΛΟΓΙΣΜΟΥ ΔΙΔΑΚΤΙΚΗΣ ΩΡΑΣ (Διορθωμένα όρια)
