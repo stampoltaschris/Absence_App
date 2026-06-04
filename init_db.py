@@ -8,9 +8,11 @@ def create_database():
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL
-    )''')
+        name TEXT,          -- 🌟 Προσθήκη ονοματεπωνύμου
+        username TEXT UNIQUE,
+        password TEXT
+    )
+''')
 
     # 2. Πίνακας Τμημάτων
     cursor.execute('''

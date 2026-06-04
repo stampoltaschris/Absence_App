@@ -27,12 +27,27 @@
         </div>
 
         <div id="panel-box" class="panel-box">
+            
             <h2 style="text-align: center;">Πάνελ Διαχείρισης</h2>
             <hr style="border: 0; border-top: 1px solid #e2e8f0; margin-bottom: 20px;">
-            
+            <div style="text-align: center; margin-bottom: 25px;">
+                <a href="/login" target="_blank" rel="noopener noreferrer" class="btn-primary" 
+                   style="display: inline-block; text-decoration: none; background-color: #3182ce; padding: 10px 20px; width: auto;">
+                   🌐 Προβολή ως Εκπαιδευτικός (Νέα Καρτέλα)
+                </a>
+            </div>
+            <div style="text-align: center; margin-bottom: 25px;">
+                <a href="/admin/add-teacher-page" target="_blank" rel="noopener noreferrer" class="btn-primary" 
+                   style="display: inline-block; text-decoration: none; background-color: #38a169; padding: 10px 20px; width: auto; margin-left: 10px;">
+                   👤 Εισαγωγή Νέου Εκπαιδευτικού (Νέα Καρτέλα)
+                </a>
+            </div>
             <h3>➕ Προσθήκη Νέου Τμήματος & Μαθητών</h3>
             <label for="new-class-name" style="font-weight: bold; font-size: 14px;">Όνομα Τμήματος (π.χ. Α1, Β2):</label>
-            <input type="text" id="new-class-name" placeholder="π.χ. Γ3">
+            <input type="text" id="new-class-name" placeholder="π.χ. Γ3" 
+                required 
+                style="text-transform: uppercase;"
+                oninput="forceGreekUppercase(this)">
             
             <label style="font-weight: bold; font-size: 14px; display: block; margin-top: 15px;">Αρχείο Excel Μαθητών (Προαιρετικό):</label>
             <input type="file" id="excel-file" accept=".xlsx, .xls" style="border: none; padding: 5px 0;">
@@ -42,11 +57,58 @@
             
             <div id="status-message" class="status-msg"></div>
             
+            <h3 style="margin-top: 30px; color: #dc2626;">🚨 Ολικός Μηδενισμός (Hard Reset)</h3>
+            <p style="color: #718096; font-size: 13px; margin-top: -10px;">
+                <strong>ΠΡΟΣΟΧΗ:</strong> Η ενέργεια αυτή θα διαγράψει μόνιμα 
+                <span style="color: #dc2626; font-weight: bold;">ΟΛΑ τα τμήματα, ΟΛΟΥΣ τους μαθητές και ΟΛΕΣ τις απουσίες</span>. 
+                Θα παραμείνουν μόνο οι λογαριασμοί των καθηγητών.
+            </p>
+            <button onclick="hardResetDatabase()" class="btn-danger" style="margin-top: 0; background-color: #dc2626; font-weight: bold;">
+                ⚠️ ΔΙΑΓΡΑΦΗ ΟΛΩΝ ΤΩΝ ΔΕΔΟΜΕΝΩΝ
+            </button>
+
+
             <button onclick="adminLogout()" class="btn-danger">Έξοδος Διαχειριστή</button>
         </div>
+        
     </div>
 
     <script>
+
+        function hardResetDatabase() {
+            // Διπλό confirmation για ασφάλεια, επειδή η ενέργεια είναι καταστροφική!
+            if (!confirm("⚠️ Είστε ΑΠΟΛΥΤΑ σίγουροι; Αυτό θα σβήσει όλα τα τμήματα και τους μαθητές που ανεβάσατε!")) {
+                return;
+            }
+            if (!confirm("ΔΕΥΤΕΡΗ ΕΠΙΒΕΒΑΙΩΣΗ: Επιβεβαιώστε ότι θέλετε να αδειάσετε πλήρως τη βάση δεδομένων.")) {
+                return;
+            }
+
+            const msgDiv = document.getElementById('status-message');
+            msgDiv.style.color = '#718096';
+            msgDiv.innerText = "⏳ Γίνεται ολικός καθαρισμός βάσης...";
+
+            fetch('/admin/hard-reset', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'}
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    msgDiv.style.color = '#dc2626';
+                    msgDiv.innerText = `🚨 ${data.message}`;
+                    alert("Ο ολικός μηδενισμός ολοκληρώθηκε με επιτυχία!");
+                } else {
+                    msgDiv.style.color = '#e53e3e';
+                    msgDiv.innerText = `❌ Σφάλμα: ${data.message}`;
+                }
+            })
+            .catch(err => {
+                msgDiv.style.color = '#e53e3e';
+                msgDiv.innerText = "❌ Αποτυχία σύνδεσης με τον διακομιστή.";
+            });
+        }
+
         // Έλεγχος αν ο admin είναι ήδη συνδεδεμένος από πριν (session)
         window.onload = function() {
             if ("{{ session.get('is_admin') }}" === "True") {
@@ -73,6 +135,58 @@
                 }
             });
         }
+
+        function forceGreekUppercase(input) {
+    // Χάρτης αντιστοίχισης αγγλικών χαρακτήρων (μικρών & κεφαλαίων) σε ελληνικά κεφαλαία
+    const englishToGreekMap = {
+        'a': 'Α', 'A': 'Α',
+        'b': 'Β', 'B': 'Β',
+        'c': 'Ψ', 'C': 'Ψ',
+        'd': 'Δ', 'D': 'Δ',
+        'e': 'Ε', 'E': 'Ε',
+        'f': 'Φ', 'F': 'Φ',
+        'g': 'Γ', 'G': 'Γ',
+        'h': 'Η', 'H': 'Η',
+        'i': 'Ι', 'I': 'Ι',
+        'j': 'Ξ', 'J': 'Ξ',
+        'k': 'Κ', 'K': 'Κ',
+        'l': 'Λ', 'L': 'Λ',
+        'm': 'Μ', 'M': 'Μ',
+        'n': 'Ν', 'N': 'Ν',
+        'o': 'Ο', 'O': 'Ο',
+        'p': 'Π', 'P': 'Π',
+        'q': ':', 'Q': ':', // Το q στα ελληνικά είναι η άνω τελεία/ένδειξη ώρας, αλλά συνήθως δεν χρειάζεται στα τμήματα
+        'r': 'Ρ', 'R': 'Ρ',
+        's': 'Σ', 'S': 'Σ',
+        't': 'Τ', 'T': 'Τ',
+        'u': 'Θ', 'U': 'Θ',
+        'v': 'Ω', 'V': 'Ω',
+        'w': 'Σ', 'W': 'Σ', // Το αγγλικό w βγάζει το τελικό ς, το κάνουμε Σ κεφαλαίο
+        'x': 'Χ', 'X': 'Χ',
+        'y': 'Υ', 'Y': 'Υ',
+        'z': 'Ζ', 'Z': 'Ζ'
+    };
+
+    let current_value = input.value;
+    let corrected_value = "";
+
+    // Ελέγχουμε κάθε γράμμα που πληκτρολόγησε ο χρήστης
+    for (let i = 0; i < current_value.length; i++) {
+        let char = current_value[i];
+        
+        if (englishToGreekMap[char]) {
+            // Αν είναι αγγλικό γράμμα, το αλλάζουμε στο αντίστοιχο ελληνικό κεφαλαίο
+            corrected_value += englishToGreekMap[char];
+        } else {
+            // Αν είναι ήδη ελληνικό (μικρό), το κάνουμε κεφαλαίο. Αν είναι αριθμός, μένει ίδιος.
+            corrected_value += char.toUpperCase();
+        }
+    }
+
+    // Κρατάμε ΜΟΝΟ ελληνικά κεφαλαία γράμματα και αριθμούς (διώχνουμε τυχόν ξένα σύμβολα)
+    input.value = corrected_value.replace(/[^Α-Ω0-9]/g, '');
+}
+
 
       function addClassWithStudents() {
             const className = document.getElementById('new-class-name').value.trim().toUpperCase();
