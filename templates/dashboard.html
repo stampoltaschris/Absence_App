@@ -27,7 +27,6 @@
         .main-container { padding: 30px 20px; }
         h2 { color: #2c3e50; margin-top: 0; }
         
-        /* Στυλ για την ένδειξη της αυτόματης ώρας */
         .auto-hour-banner {
             background-color: #007bff; color: white; padding: 12px;
             max-width: 450px; margin: 15px auto; border-radius: 8px; font-size: 18px; font-weight: bold;
@@ -51,16 +50,17 @@
     <div class="navbar">
         <div class="user-info">Σύνδεση ως: <b>{{ username }}</b></div>
         <div class="live-clock" id="nav-clock">00:00:00</div>
-<a href="/logout" style="text-decoration: none;">
-    <button type="button" style="background-color: #e53e3e; color: white; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer;">
-        Αποσύνδεση
-    </button>
-</a>    </div>
+        <a href="/logout" style="text-decoration: none;">
+            <button type="button" style="background-color: #e53e3e; color: white; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer;">
+                Αποσύνδεση
+            </button>
+        </a>
+    </div>
 
     <div class="main-container">
         <h2>Επιλογή Τμήματος</h2>
         
-        {% if auto_hour != "MANUAL" %}
+        {% if auto_hour != "MANUAL" and auto_hour != "Εκτός Ωραρίου" %}
             <div class="auto-hour-banner">
                 🔔 Αυτόματη Επιλογή: {{ auto_hour }} Διδακτική Ώρα
             </div>
@@ -82,41 +82,40 @@
 
         <div class="grid">
             {% for c in classes %}
-    {% set is_my_current_class = (session.get('current_class') == c.name) %}
-    {% set has_any_active_class = (session.get('current_class') is not none) %}
-    {% set is_already_submitted = (c.name in submitted_classes) %}
-    
-    {% set is_breaktime = (auto_hour == "Διάλειμμα") %}
+                {% set is_my_current_class = (session.get('current_class') == c.name) %}
+                {% set has_any_active_class = (session.get('current_class') is not none) %}
+                {% set is_already_submitted = (c.name in submitted_classes) %}
+                {% set is_breaktime = (auto_hour == "Διάλειμμα") %}
 
-    <button 
-        id="btn-{{ c.name }}"
-        class="class-btn"
-        {% if is_breaktime %}
-            disabled 
-            style="background-color: #cbd5e0; color: #4a5568; cursor: not-allowed; opacity: 0.6;"
-        {% elif is_already_submitted %}
-            disabled 
-            style="background-color: #cbd5e0; color: #718096; cursor: not-allowed; opacity: 0.7;"
-        {% elif has_submitted %}
-            disabled 
-            style="background-color: #e2e8f0; color: #a0aec0; cursor: not-allowed; opacity: 0.5;"
-        {% elif has_any_active_class and not is_my_current_class %}
-            disabled 
-            style="opacity: 0.4; cursor: not-allowed;"
-        {% endif %}
-        onclick="selectClass('{{ c.name }}', {{ 'true' if locked.get(c.name) and locked.get(c.name) != username else 'false' }})"
-    >
-        {% if is_breaktime %}
-            {{ c.name }} (Διάλειμμα)
-        {% elif is_already_submitted %}
-            {{ c.name }} (Έχει γίνει καταχώριση για αυτήν την ώρα)
-        {% elif has_submitted %}
-            {{ c.name }} (Μη διαθέσιμο - Ολοκληρώθηκε η υποβολή σας)
-        {% else %}
-            {{ c.name }} {% if is_my_current_class %} (Ενεργό) {% endif %}
-        {% endif %}
-    </button>
-{% endfor %}
+                <button 
+                    id="btn-{{ c.name }}"
+                    class="class-btn"
+                    {% if is_breaktime %}
+                        disabled 
+                        style="background-color: #cbd5e0; color: #4a5568; cursor: not-allowed; opacity: 0.6;"
+                    {% elif is_already_submitted %}
+                        disabled 
+                        style="background-color: #cbd5e0; color: #718096; cursor: not-allowed; opacity: 0.7;"
+                    {% elif has_submitted %}
+                        disabled 
+                        style="background-color: #e2e8f0; color: #a0aec0; cursor: not-allowed; opacity: 0.5;"
+                    {% elif has_any_active_class and not is_my_current_class %}
+                        disabled 
+                        style="opacity: 0.4; cursor: not-allowed;"
+                    {% endif %}
+                    onclick="selectClass('{{ c.name }}', {{ 'true' if locked.get(c.name) and locked.get(c.name) != raw_username else 'false' }})"
+                >
+                    {% if is_breaktime %}
+                        {{ c.name }} (Διάλειμμα)
+                    {% elif is_already_submitted %}
+                        {{ c.name }} (Έχει γίνει καταχώριση για αυτήν την ώρα)
+                    {% elif has_submitted %}
+                        {{ c.name }} (Μη διαθέσιμο - Ολοκληρώθηκε η υποβολή σας)
+                    {% else %}
+                        {{ c.name }} {% if is_my_current_class %} (Ενεργό) {% endif %}
+                    {% endif %}
+                </button>
+            {% endfor %}
         </div>
     </div>
 
@@ -134,50 +133,60 @@
         let selectedClassOnce = null;
 
         function selectClass(className, isLockedByOther) {
-    // 1. Αν το τμήμα είναι κλειδωμένο από άλλον χρήστη, σταμάτα
-    if (isLockedByOther) {
-        alert("Αυτό το τμήμα είναι κατειλημμένο!");
-        return;
-    }
+            if (isLockedByOther) {
+                alert("Αυτό το τμήμα είναι κατειλημμένο!");
+                return;
+            }
 
-    const button = document.getElementById(`btn-${className}`);
+            const button = document.getElementById(`btn-${className}`);
 
-    // 2. ΕΛΕΓΧΟΣ ΔΙΠΛΟΥ TAP
-    if (selectedClassOnce !== className) {
-        // Καθαρισμός προηγούμενου button αν είχε γίνει single tap κάπου αλλού
-        if (selectedClassOnce) {
-            const prevButton = document.getElementById(`btn-${selectedClassOnce}`);
-            if (prevButton) prevButton.style.backgroundColor = ""; // επαναφορά χρώματος
+            if (selectedClassOnce !== className) {
+                if (selectedClassOnce) {
+                    const prevButton = document.getElementById(`btn-${selectedClassOnce}`);
+                    if (prevButton) prevButton.style.backgroundColor = ""; 
+                }
+                
+                selectedClassOnce = className;
+                button.style.backgroundColor = "#ecc94b"; 
+                button.innerText = `${className} (Ξαναπατήστε για επιβεβαίωση)`;
+                return;
+            }
+
+            // Επιλογή ώρας (αυτόματη ή χειροκίνητη από το select)
+            const hourElement = document.getElementById('hour-selection');
+            const currentHour = hourElement ? hourElement.value : "{{ auto_hour }}"; 
+
+            fetch('/select-class', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ class_name: className, hour: currentHour })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    window.location.href = '/attendance';
+                } else {
+                    alert(data.message);
+                    button.style.backgroundColor = "";
+                    selectedClassOnce = null;
+                }
+            });
         }
-        
-        // Πρώτο Tap: Άλλαξε χρώμα στο κουμπί και περίμενε
-        selectedClassOnce = className;
-        button.style.backgroundColor = "#ecc94b"; // Κίτρινο χρώμα προειδοποίησης/επιβεβαίωσης
-        button.innerText = `${className} (Ξαναπατήστε για επιβεβαίωση)`;
-        return;
-    }
-
-    // Δεύτερο Tap: Προχωράμε στην κανονική αποστολή στο backend
-    const currentHour = "{{ auto_hour }}"; 
-
-    fetch('/select-class', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ class_name: className, hour: currentHour })
-    })
+        // 🎯 Αυτόματος έλεγχος αν ο Admin έκανε Kick τον καθηγητή
+// 🎯 Αυτόματος έλεγχος αν ο Admin έκανε Kick ΜΟΝΟ τον καθηγητή
+function checkCurrentSessionStatus() {
+    fetch('/api/auth-check')
     .then(res => res.json())
     .then(data => {
-        if (data.status === 'success') {
-            window.location.href = '/attendance';
-        } else {
-            alert(data.message);
-            // Επαναφορά σε περίπτωση αποτυχίας
-            button.style.backgroundColor = "";
-            selectedClassOnce = null;
+        if (data.status === 'kicked') {
+            alert("⚠️ Αποσυνδεθήκατε από τον διαχειριστή του συστήματος.");
+            window.location.href = '/login'; // Τον πετάει έξω αμέσως
         }
-    });
+    })
+    .catch(err => console.log("Session check error"));
 }
-
+// Έλεγχος κάθε 3 δευτερόλεπτα
+setInterval(checkCurrentSessionStatus, 3000);
     </script>
 </body>
 </html>

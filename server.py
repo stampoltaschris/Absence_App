@@ -41,46 +41,46 @@ def get_current_school_hour():
     if "08:15" <= current_time_str < "09:00":
         return "1η"
     # 1ο Διάλειμμα (09:00 - 09:10)
-    elif "09:00" <= current_time_str < "09:10":
+    elif "09:00" <= current_time_str < "09:05":
         return "Διάλειμμα"
         
     # 2η Ώρα (09:10 - 09:55)
-    elif "09:10" <= current_time_str < "09:55":
+    elif "09:05" <= current_time_str < "09:50":
         return "2η"
     # 2ο Διάλειμμα (09:55 - 10:05)
-    elif "09:55" <= current_time_str < "10:05":
+    elif "09:50" <= current_time_str < "10:00":
         return "Διάλειμμα"
         
     # 3η Ώρα (10:05 - 10:50)
-    elif "10:05" <= current_time_str < "10:50":
+    elif "10:00" <= current_time_str < "10:45":
         return "3η"
     # 3ο Διάλειμμα (10:50 - 11:00)
-    elif "10:50" <= current_time_str < "11:00":
+    elif "10:45" <= current_time_str < "10:55":
         return "Διάλειμμα"
         
     # 4η Ώρα (11:00 - 11:45)
-    elif "11:00" <= current_time_str < "11:45":
+    elif "10:55" <= current_time_str < "11:40":
         return "4η"
     # 4ο Διάλειμμα (11:45 - 11:55)
-    elif "11:45" <= current_time_str < "11:55":
+    elif "11:40" <= current_time_str < "11:50":
         return "Διάλειμμα"
         
     # 5η Ώρα (11:55 - 12:40)
-    elif "11:55" <= current_time_str < "12:40":
+    elif "11:50" <= current_time_str < "12:35":
         return "5η"
     # 5ο Διάλειμμα (12:40 - 12:50)
-    elif "12:40" <= current_time_str < "12:50":
+    elif "12:35" <= current_time_str < "12:45":
         return "Διάλειμμα"
         
     # 6η Ώρα (12:50 - 13:35)
-    elif "12:50" <= current_time_str < "13:35":
+    elif "12:45" <= current_time_str < "13:25":
         return "6η"
     # 6ο Διάλειμμα (13:35 - 13:40)
-    elif "13:35" <= current_time_str < "13:40":
+    elif "13:25" <= current_time_str < "13:30":
         return "Διάλειμμα"
         
     # 7η Ώρα (13:40 - 14:25)
-    elif "13:40" <= current_time_str < "14:25":
+    elif "13:30" <= current_time_str < "14:10":
         return "7η"
         
     else:
@@ -100,9 +100,59 @@ def show_login():
     auto_hour = get_current_school_hour()
     return render_template('login.html', auto_hour=auto_hour)
 
+@app.route('/admin/monitor')
+def admin_monitor_page():
+    if not session.get('is_admin'):
+        return "Μη εξουσιοδοτημένη πρόσβαση", 403
+    return render_template('admin_monitor.html')
+
+# 🎯 ΔΙΟΡΘΩΜΕΝΟ: Προσθήκη του API που καλεί το live monitor
+@app.route('/admin/api/monitor-status')
+def get_live_status_api():
+    if not session.get('is_admin'):
+        return jsonify({"error": "Unauthorized"}), 403
+    return jsonify({
+        "active_sessions": ACTIVE_SESSIONS,
+        "locked_classes": LOCKED_CLASSES
+    })
+
+# 🎯 ΔΙΟΡΘΩΜΕΝΟ: Αναγκαστική αποσύνδεση εκπαιδευτικού από Admin
+@app.route('/admin/api/kick-teacher', methods=['POST'])
+def kick_teacher():
+    if not session.get('is_admin'):
+        return jsonify({"status": "error", "message": "Unauthorized"}), 403
+    data = request.json
+    target_user = data.get('username', '').strip().lower()
+    
+    if target_user in ACTIVE_SESSIONS:
+        del ACTIVE_SESSIONS[target_user]
+    
+    to_remove = [k for k, v in LOCKED_CLASSES.items() if v == target_user]
+    for k in to_remove:
+        del LOCKED_CLASSES[k]
+        
+    return jsonify({"status": "success"})
+
+# 🎯 ΔΙΟΡΘΩΜΕΝΟ: Αναγκαστικό ξεκλείδωμα τμήματος από Admin
+@app.route('/admin/api/unlock-class', methods=['POST'])
+def unlock_class_admin():
+    if not session.get('is_admin'):
+        return jsonify({"status": "error", "message": "Unauthorized"}), 403
+    data = request.json
+    class_name = data.get('class_name')
+    
+    if class_name in LOCKED_CLASSES:
+        del LOCKED_CLASSES[class_name]
+        
+    return jsonify({"status": "success"})
+
 @app.route('/admin')
 def admin_panel():
-    return render_template('admin.html')
+    # Διαβάζουμε αν ο χρήστης έχει συνδεθεί επιτυχώς (True ή False)
+    logged_in = session.get('is_admin', False)
+    
+    # 🎯 ΠΕΡΝΑΜΕ ΤΗ ΜΕΤΑΒΛΗΤΗ ΜΕΣΑ ΣΤΟ TEMPLATE ΓΙΑ ΝΑ ΞΕΚΛΕΙΔΩΣΕΙ!
+    return render_template('admin.html', is_admin=logged_in)
 
 @app.route('/admin/add-teacher-page')
 def admin_add_teacher_page():
@@ -164,9 +214,8 @@ def process_login():
         
         if user:
             ACTIVE_SESSIONS[username] = time.time()
-            # Αποθηκεύουμε το Επώνυμο/Ονοματεπώνυμο στο session αντί για το username
             session['username'] = user['name'] if user['name'] else username
-            session['raw_username'] = username  # Κρατάμε και το καθαρό username για τα locks
+            session['raw_username'] = username  # Κρατάμε το καθαρό username για τα locks
             conn.close()
             return jsonify({"status": "success"})
             
@@ -177,25 +226,44 @@ def process_login():
         return jsonify({"status": "error", "message": f"Σφάλμα βάσης: {str(e)}"}), 500
 
 # =========================================================================
-# ROUTE DASHBOARD
+# ROUTE DASHBOARD (ΔΙΟΡΘΩΜΕΝΟ)
 # =========================================================================
+
+# 🎯 ΝΕΟ ΕΝDPOINT: Ελέγχει live αν ο καθηγητής έχει υποστεί kick
+@app.route('/api/auth-check')
+def auth_check():
+    current_user = session.get('username')
+    raw_user = session.get('raw_username', current_user)
+    
+    # Αν δεν είναι καν συνδεδεμένος ή αν ο Admin τον διέγραψε από τα ACTIVE_SESSIONS
+    if not raw_user or raw_user not in ACTIVE_SESSIONS:
+        session.clear() # Καθαρίζει το session ΤΟΥ ΚΑΘΗΓΗΤΗ
+        return jsonify({"status": "kicked"})
+        
+    return jsonify({"status": "ok"})
+
 @app.route('/dashboard')
 def dashboard():
     if 'username' not in session:
         return redirect(url_for('show_login'))
         
     auto_hour = get_current_school_hour()
-    current_user = session.get('username')
-    raw_user = session.get('raw_username', current_user)
+    current_user = session.get('username') 
+    raw_user = session.get('raw_username', current_user) 
+
+    # 🎯 ΝΕΟΣ ΕΛΕΓΧΟΣ KICK: Αν ο Admin σε διέγραψε από τα ACTIVE_SESSIONS, έφυγες!
+    if raw_user not in ACTIVE_SESSIONS:
+        session.clear()
+        return redirect(url_for('show_login'))
     
     if auto_hour == "Διάλειμμα":
-        to_remove = [k for k, v in LOCKED_CLASSES.items() if v == current_user]
+        to_remove = [k for k, v in LOCKED_CLASSES.items() if v == raw_user]
         for k in to_remove:
             del LOCKED_CLASSES[k]
         if raw_user in ACTIVE_SESSIONS:
             del ACTIVE_SESSIONS[raw_user]
         session.clear()
-        return render_template('login.html', auto_hour=auto_hour, error="Το μάθημα τελείωσε. Έγινε αυτόματη αποσύνδεση λόγω διαλείμματος.")
+        return render_template('login.html', auto_hour=auto_hour, error="Το μάθημα τελείωσε. Έγινε automatic αποσύνδεση λόγω διαλείμματος.")
 
     conn = get_db_connection()
     classes = conn.execute('SELECT * FROM classes').fetchall()
@@ -206,15 +274,12 @@ def dashboard():
     if auto_hour != "Εκτός Ωραρίου":
         current_date = datetime.now().strftime('%Y-%m-%d')
         
-        done_rows = conn.execute(
-            'SELECT class_name FROM submitted_attendance WHERE school_hour = ? AND date = ?',
-            (auto_hour, current_date)
-        ).fetchall()
+        done_rows = conn.execute('SELECT class_name FROM submitted_attendance WHERE school_hour = ? AND date = ?',(auto_hour, current_date)).fetchall()
         submitted_classes = [row['class_name'] for row in done_rows]
         
         teacher_check = conn.execute(
             'SELECT id FROM submitted_attendance WHERE school_hour = ? AND date = ? AND username = ?',
-            (auto_hour, current_date, current_user)
+            (auto_hour, current_date, raw_user)
         ).fetchone()
         has_submitted = True if teacher_check else False
         
@@ -223,6 +288,7 @@ def dashboard():
     return render_template(
         'dashboard.html', 
         username=current_user, 
+        raw_username=raw_user,  # 🎯 Περνάμε το raw_username στο template
         classes=classes, 
         locked=LOCKED_CLASSES, 
         auto_hour=auto_hour,
@@ -241,12 +307,13 @@ def select_class():
         
     class_name = data.get('class_name')
     hour = data.get('hour') 
-    current_user = session['username']
+    raw_user = session.get('raw_username')
     
-    if class_name in LOCKED_CLASSES and LOCKED_CLASSES[class_name] != current_user:
-        return jsonify({"status": "error", "message": f"Το τμήμα {class_name} είναι ήδη κατειλημμένο από τον χρήστη {LOCKED_CLASSES[class_name]}!"})
+    # 🎯 ΔΙΟΡΘΩΣΗ: Έλεγχος κατάληψης με βάση το raw_user
+    if class_name in LOCKED_CLASSES and LOCKED_CLASSES[class_name] != raw_user:
+        return jsonify({"status": "error", "message": f"Το τμήμα {class_name} είναι ήδη κατειλημμένο!"})
     
-    LOCKED_CLASSES[class_name] = current_user
+    LOCKED_CLASSES[class_name] = raw_user
     session['current_class'] = class_name
     session['current_hour'] = hour
     
@@ -278,8 +345,8 @@ def back_to_dashboard():
 def logout():
     current_user = session.get('username')
     raw_user = session.get('raw_username', current_user)
-    if current_user:
-        to_remove = [k for k, v in LOCKED_CLASSES.items() if v == current_user]
+    if raw_user:
+        to_remove = [k for k, v in LOCKED_CLASSES.items() if v == raw_user]
         for k in to_remove:
             del LOCKED_CLASSES[k]
         if raw_user in ACTIVE_SESSIONS:
@@ -299,6 +366,7 @@ def send_absence():
     student_ids = data.get('student_ids', [])
     hour = session.get('current_hour', '1η')
     class_name = session.get('current_class')
+    raw_user = session.get('raw_username')
     
     if not class_name:
         return jsonify({"status": "error", "message": "Δεν βρέθηκε ενεργό τμήμα στο session"}), 400
@@ -337,17 +405,15 @@ def send_absence():
     try:
         current_date = datetime.now().strftime('%Y-%m-%d')
         current_hour = get_current_school_hour()
-        current_user = session.get('username')
         
         conn.execute(
             'INSERT INTO submitted_attendance (class_name, school_hour, date, username) VALUES (?, ?, ?, ?)',
-            (class_name, current_hour, current_date, current_user)
+            (class_name, current_hour, current_date, raw_user)
         )
         conn.commit()
         
-        to_remove = [k for k, v in LOCKED_CLASSES.items() if v == current_user]
-        for k in to_remove:
-            del LOCKED_CLASSES[k]
+        if class_name in LOCKED_CLASSES:
+            del LOCKED_CLASSES[class_name]
             
         session.pop('current_class', None)
         session.pop('current_hour', None)
@@ -369,6 +435,18 @@ def admin_login_process():
         return jsonify({"status": "success"})
     return jsonify({"status": "error", "message": "Λάθος κωδικός πρόσβασης διαχειριστή!"})
 
+# 🎯 ΝΕΟ ΣΥΜΒΑΤΟ ROUTE: Διαβάζει τον κωδικό από την κλασική φόρμα HTML και κάνει redirect
+@app.route('/admin-login-direct', methods=['POST'])
+def admin_login_direct():
+    password = request.form.get('password') # Διαβάζει το input της φόρμας
+    
+    if password == ADMIN_PASSWORD:
+        session['is_admin'] = True
+        return redirect(url_for('admin_panel')) # Σε στέλνει «καρφωτό» μέσα στο ξεκλείδωτο /admin
+        
+    # Αν ο κωδικός είναι λάθος, επιστρέφει στην είσοδο
+    return "Λάθος κωδικός πρόσβασης διαχειριστή! <a href='/admin'>Δοκιμάστε ξανά</a>"
+
 # =========================================================================
 # ΔΗΜΙΟΥΡΓΙΑ ΤΜΗΜΑΤΟΣ ΚΑΙ PARSING EXCEL
 # =========================================================================
@@ -379,6 +457,8 @@ def admin_add_class():
         
     class_name = request.form.get('class_name', '').strip().upper()
     excel_file = request.files.get('excel_file')
+    # 🎯 ΔΙΚΛΕΙΔΑ ΑΣΦΑΛΕΙΑΣ: Αν για κάποιο λόγο περιέχει .XLSX ή .XLS, το αφαιρούμε κι εδώ
+    class_name = class_name.replace('.XLSX', '').replace('.XLS', '').strip()
     
     if not class_name:
         return jsonify({"status": "error", "message": "Το όνομα τμήματος δεν μπορεί να είναι κενό"}), 400
@@ -473,12 +553,21 @@ def admin_hard_reset():
         if conn: conn.close()
         return jsonify({"status": "error", "message": str(e)}), 500
 
+# 🎯 ΔΙΚΛΕΙΔΑ ΑΣΦΑΛΕΙΑΣ: Απαγόρευση Cache για να μην κρατάει ο browser τη σελίδα του Admin μετά την έξοδο
+@app.after_request
+def add_header(response):
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
 # =========================================================================
-# INITIALIZATION ΚΑΙ RUN
+# INITIALIZATION ΚΑΙ RUN (ΔΙΟΡΘΩΜΕΝΟ)
 # =========================================================================
 if __name__ == '__main__':
     conn = sqlite3.connect('database.db')
     cursor = conn.cursor()
+    
+    # 1. Πίνακας Υποβολών
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS submitted_attendance (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -488,6 +577,8 @@ if __name__ == '__main__':
             username TEXT
         )
     ''')
+    
+    # 2. Πίνακας Χρηστών/Εκπαιδευτικών (με τη στήλη name!)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -496,6 +587,26 @@ if __name__ == '__main__':
             password TEXT
         )
     ''')
+    
+    # 3. 🎯 Πίνακας Τμημάτων (Αυτός που έλειπε!)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS classes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE
+        )
+    ''')
+    
+    # 4. 🎯 Πίνακας Μαθητών (Κι αυτός έλειπε!)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS students (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT,
+            email TEXT,
+            class_id INTEGER,
+            FOREIGN KEY(class_id) REFERENCES classes(id)
+        )
+    ''')
+    
     conn.commit()
     conn.close()
 

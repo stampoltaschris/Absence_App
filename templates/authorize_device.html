@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Έγκριση Συσκευής</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; padding: 5px; background-color: #f7fafc; }
+        .card { max-width: 400px; margin: 50px auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        button { background: #3182ce; color: white; border: none; padding: 12px 25px; font-size: 16px; font-weight: bold; border-radius: 6px; cursor: pointer; }
+        .status { margin-top: 20px; font-weight: bold; font-size: 18px; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>🔒 Έγκριση Σχολικού Tablet</h2>
+        <p>Πατήστε το κουμπί για να καταχωρηθεί η συσκευή στο σύστημα απουσιών.</p>
+        <button onclick="authorizeThisTablet()">Εγγραφή Συσκευής</button>
+        <div id="status-msg" class="status"></div>
+    </div>
+
+    <script>
+        // Ελέγχουμε αν είναι ήδη εγκεκριμένο
+        if(localStorage.getItem('school_device_token') === "{{ secret_token }}") {
+            document.getElementById('status-msg').innerText = "✅ Η συσκευή είναι ήδη εγκεκριμένη!";
+            document.getElementById('status-msg').style.color = "green";
+        }
+
+        function authorizeThisTablet() {
+            try {
+                localStorage.setItem('school_device_token', "{{ secret_token }}");
+                document.getElementById('status-msg').innerText = "🚀 Επιτυχής Έγκριση Tablet!";
+                document.getElementById('status-msg').style.color = "green";
+                alert("Το Tablet εγκρίθηκε με επιτυχία! Μπορείτε τώρα να κάνετε login.");
+            } catch(e) {
+                document.getElementById('status-msg').innerText = "❌ Αποτυχία αποθήκευσης.";
+                document.getElementById('status-msg').style.color = "red";
+            }
+        }
+    </script>
+</body>
+</html>

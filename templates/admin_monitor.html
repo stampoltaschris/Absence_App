@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Παρακολούθηση & Διαχείριση Συστήματος</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #1a202c; color: #e2e8f0; padding: 30px; margin: 0; }
+        .container { max-width: 950px; margin: 0 auto; }
+        h2 { text-align: center; color: #fff; margin-bottom: 30px; }
+        .monitor-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 30px; }
+        @media (max-width: 768px) { .monitor-grid { grid-template-columns: 1fr; } }
+        .card { background: #2d3748; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        .card h3 { margin-top: 0; border-bottom: 2px solid #4a5568; padding-bottom: 10px; color: #cbd5e0; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { text-align: left; padding: 10px; border-bottom: 1px solid #4a5568; vertical-align: middle; }
+        th { background-color: #4a5568; color: #fff; font-size: 14px; }
+        td { font-size: 15px; }
+        .badge { background-color: #38a169; color: white; padding: 3px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+        .badge-lock { background-color: #dd6b20; }
+        .btn-back { display: inline-block; background-color: #4a5568; color: white; text-decoration: none; padding: 10px 20px; border-radius: 4px; font-weight: bold; margin-bottom: 20px; }
+        .btn-refresh { background-color: #3182ce; color: white; border: none; padding: 10px 20px; border-radius: 4px; font-weight: bold; cursor: pointer; float: right; }
+        .btn-kick { background-color: #e53e3e; color: white; border: none; padding: 5px 10px; border-radius: 4px; font-size: 12px; font-weight: bold; cursor: pointer; transition: background-color 0.2s; }
+        .btn-kick:hover { background-color: #c53030; }
+        .empty-msg { color: #a0aec0; font-style: italic; text-align: center; padding: 20px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <button onclick="fetchLiveStatus()" class="btn-refresh">🔄 Ανανέωση</button>
+    <a href="/admin" class="btn-back">⬅️ Επιστροφή στο Admin</a>
+    
+    <h2>🌐 Live Παρακολούθηση & Διαχείριση Συστήματος</h2>
+
+    <div class="monitor-grid">
+        <div class="card">
+            <h3>👤 Συνδεδεμένοι Εκπαιδευτικοί (<span id="teachers-count">0</span>)</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Username / Εκπαιδευτικός</th>
+                        <th>Κατάσταση</th>
+                        <th>Ενέργεια</th>
+                    </tr>
+                </thead>
+                <tbody id="teachers-table-body"></tbody>
+            </table>
+            <div id="teachers-empty" class="empty-msg" style="display: none;">Κανένας εκπαιδευτικός συνδεδεμένος.</div>
+        </div>
+
+        <div class="card">
+            <h3>📦 Δεσμευμένα Τμήματα (<span id="classes-count">0</span>)</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Τμήμα</th>
+                        <th>Από εκπαιδευτικό</th>
+                        <th>Ενέργεια</th>
+                    </tr>
+                </thead>
+                <tbody id="classes-table-body"></tbody>
+            </table>
+            <div id="classes-empty" class="empty-msg" style="display: none;">Κανένα τμήμα δεσμευμένο.</div>
+        </div>
+    </div>
+</div>
+
+<script>
+function fetchLiveStatus() {
+    fetch('/admin/api/monitor-status')
+    .then(res => {
+        if(res.status === 403) {
+            alert("Λήξη Session Admin! Παρακαλώ κάντε ξανά login στο /admin.");
+            window.location.href = "/admin";
+            return;
+        }
+        return res.json();
+    })
+    .then(data => {
+        if(!data) return;
+        
+        // 1. Ενημέρωση Εκπαιδευτικών
+        const tBody = document.getElementById('teachers-table-body');
+        tBody.innerHTML = '';
+        
+        let activeUsersSet = new Set(Object.keys(data.active_sessions));
+        Object.values(data.locked_classes).forEach(user => activeUsersSet.add(user.toLowerCase()));
+        
+        const activeTeachers = Array.from(activeUsersSet);
+        document.getElementById('teachers-count').innerText = activeTeachers.length;
+        
+        if (activeTeachers.length === 0) {
+            document.getElementById('teachers-empty').style.display = 'block';
+        } else {
+            document.getElementById('teachers-empty').style.display = 'none';
+            activeTeachers.forEach(teacher => {
+                const row = `<tr>
+                    <td><b>${teacher}</b></td>
+                    <td><span class="badge">Active</span></td>
+                    <td><button class="btn-kick" onclick="kickTeacher('${teacher}')">❌ Αποσύνδεση</button></td>
+                </tr>`;
+                tBody.innerHTML += row;
+            });
+        }
+
+        // 2. Ενημέρωση Κλειδωμένων Τμημάτων
+        const cBody = document.getElementById('classes-table-body');
+        cBody.innerHTML = '';
+        const lockedClasses = Object.keys(data.locked_classes);
+        document.getElementById('classes-count').innerText = lockedClasses.length;
+
+        if (lockedClasses.length === 0) {
+            document.getElementById('classes-empty').style.display = 'block';
+        } else {
+            document.getElementById('classes-empty').style.display = 'none';
+            lockedClasses.forEach(className => {
+                const row = `<tr>
+                    <td><span class="badge badge-lock">${className}</span></td>
+                    <td><b>${data.locked_classes[className]}</b></td>
+                    <td><button class="btn-kick" onclick="unlockClass('${className}')">❌ Αποδέσμευση</button></td>
+                </tr>`;
+                cBody.innerHTML += row;
+            });
+        }
+    })
+    .catch(err => console.error("Σφάλμα παρακολούθησης:", err));
+}
+
+function kickTeacher(username) {
+    if(confirm(`Θέλετε να αποσυνδέσετε αναγκαστικά τον εκπαιδευτικό ${username};`)) {
+        fetch('/admin/api/kick-teacher', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: username })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if(data.status === 'success') fetchLiveStatus();
+            else alert(data.message);
+        });
+    }
+}
+
+function unlockClass(className) {
+    if(confirm(`Θέλετε να ξεκλειδώσετε αναγκαστικά το τμήμα ${className};`)) {
+        fetch('/admin/api/unlock-class', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ class_name: className })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if(data.status === 'success') fetchLiveStatus();
+            else alert(data.message);
+        });
+    }
+}
+
+// Ανανέωση κάθε 4 δευτερόλεπτα
+setInterval(fetchLiveStatus, 4000);
+fetchLiveStatus();
+</script>
+
+</body>
+</html>

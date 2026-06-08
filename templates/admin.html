@@ -3,239 +3,294 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Διαχείριση - Απουσιολόγιο</title>
+    <title>Πάνελ Διαχείρισης</title>
     <style>
-        body { font-family: Arial, sans-serif; background-color: #f7fafc; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-        .admin-container { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; }
-        input { width: 90%; padding: 12px; margin: 10px 0; border: 1px solid #cbd5e0; border-radius: 6px; font-size: 16px; }
-        button { width: 96%; padding: 12px; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: bold; margin-top: 10px; }
-        .btn-primary { background-color: #4a5568; }
-        .btn-primary:hover { background-color: #2d3748; }
-        .btn-danger { background-color: #e53e3e; margin-top: 20px; }
-        .panel-box { display: none; text-align: left; }
-        .status-msg { margin-top: 15px; font-weight: bold; color: #2f855a; }
+        :root {
+            --primary: #3182ce;
+            --primary-hover: #2b6cb0;
+            --success: #38a169;
+            --success-hover: #2f855a;
+            --danger: #e53e3e;
+            --danger-hover: #c53030;
+            --dark: #2d3748;
+            --dark-hover: #1a202c;
+            --bg: #f7fafc;
+            --card-bg: #ffffff;
+            --text: #2d3748;
+            --text-muted: #718096;
+        }
+
+        body { 
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; 
+            background-color: var(--bg); 
+            color: var(--text);
+            margin: 0; 
+            padding: 20px;
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            min-height: 100vh; 
+        }
+
+        .admin-card { 
+            background: var(--card-bg); 
+            padding: 35px; 
+            border-radius: 16px; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05); 
+            width: 100%; 
+            max-width: 480px; 
+        }
+
+        h2 { 
+            text-align: center; 
+            color: var(--dark); 
+            margin-top: 0;
+            margin-bottom: 25px;
+            font-size: 26px;
+            font-weight: 700;
+            border-bottom: 2px solid #edf2f7;
+            padding-bottom: 15px;
+        }
+
+        h3 {
+            font-size: 18px;
+            color: var(--dark);
+            margin-top: 0;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-box {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+            text-align: left;
+        }
+
+        label { 
+            font-weight: 600; 
+            color: var(--text); 
+            display: block;
+            margin-bottom: 6px;
+            font-size: 14px;
+        }
+
+        input[type="text"], input[type="password"] { 
+            width: 100%; 
+            padding: 12px; 
+            border: 1px solid #cbd5e1; 
+            border-radius: 8px; 
+            box-sizing: border-box;
+            font-size: 15px;
+            transition: all 0.2s;
+            background: #fff;
+        }
+
+        input[type="text"]:focus, input[type="password"]:focus {
+            border-color: var(--primary);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.15);
+        }
+
+        input[type="file"] {
+            width: 100%;
+            padding: 8px;
+            background: #fff;
+            border: 1px dashed #cbd5e1;
+            border-radius: 8px;
+            box-sizing: border-box;
+            cursor: pointer;
+        }
+
+        .info-text {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 6px;
+            line-height: 1.4;
+        }
+
+        .btn { 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            width: 100%; 
+            padding: 14px; 
+            color: white; 
+            border: none; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-size: 15px; 
+            font-weight: 600; 
+            text-decoration: none;
+            box-sizing: border-box;
+            transition: all 0.2s ease;
+            margin-bottom: 12px;
+        }
+
+        .btn:last-child { margin-bottom: 0; }
+        .btn-primary { background-color: var(--primary); }
+        .btn-primary:hover { background-color: var(--primary-hover); transform: translateY(-1px); }
+        .btn-success { background-color: var(--success); }
+        .btn-success:hover { background-color: var(--success-hover); transform: translateY(-1px); }
+        .btn-dark { background-color: var(--dark); }
+        .btn-dark:hover { background-color: var(--dark-hover); transform: translateY(-1px); }
+        .btn-danger { background-color: var(--danger); }
+        .btn-danger:hover { background-color: var(--danger-hover); transform: translateY(-1px); }
+
+        .btn-outline {
+            background-color: transparent;
+            color: var(--danger);
+            border: 2px solid var(--danger);
+            margin-top: 15px;
+        }
+        .btn-outline:hover {
+            background-color: var(--danger);
+            color: white;
+        }
+
+        .danger-zone {
+            border: 1px solid #fed7d7;
+            background-color: #fffaf5;
+        }
+        .danger-zone h3 { color: var(--danger); }
     </style>
 </head>
 <body>
 
-    <div class="admin-container">
-        <div id="login-box">
-            <h2>Κλείδωμα Διαχειριστή</h2>
-            <p style="color: #718096; font-size: 14px;">Εισάγετε τον κωδικό master για πρόσβαση στα εργαλεία.</p>
-            <input type="password" id="admin-password" placeholder="Κωδικός Διαχειριστή">
-            <button onclick="adminLogin()" class="btn-primary">Είσοδος</button>
-        </div>
-
-        <div id="panel-box" class="panel-box">
+    <div class="admin-card">
+        
+        {% if not is_admin %}
+            <h2>🔒 Είσοδος Διαχειριστή</h2>
             
-            <h2 style="text-align: center;">Πάνελ Διαχείρισης</h2>
-            <hr style="border: 0; border-top: 1px solid #e2e8f0; margin-bottom: 20px;">
-            <div style="text-align: center; margin-bottom: 25px;">
-                <a href="/login" target="_blank" rel="noopener noreferrer" class="btn-primary" 
-                   style="display: inline-block; text-decoration: none; background-color: #3182ce; padding: 10px 20px; width: auto;">
-                   🌐 Προβολή ως Εκπαιδευτικός (Νέα Καρτέλα)
+            <form action="/admin-login-direct" method="POST">
+                <div class="section-box">
+                    <div class="form-group">
+                        <label for="admin-pass">Κωδικός Πρόσβασης:</label>
+                        <input type="password" id="admin-pass" name="password" placeholder="Πληκτρολογήστε τον κωδικό" required>
+                    </div>
+                    <button type="submit" class="btn btn-dark">
+                        🔓 Σύνδεση στο Πάνελ
+                    </button>
+                </div>
+            </form>
+            
+            <a href="/" class="btn btn-outline" style="border-color: #718096; color: #718096;">
+                ⬅️ Επιστροφή στην Αρχική
+            </a>
+
+        {% else %}
+            <h2>Πάνελ Διαχείρισης</h2>
+            
+            <div class="section-box">
+                <a href="/dashboard" target="_blank" class="btn btn-primary">
+                    🌐 Προβολή ως Εκπαιδευτικός
+                </a>
+                <a href="/admin/add-teacher-page" target="_blank" class="btn btn-success">
+                    👤 Εισαγωγή Νέου Εκπαιδευτικού
+                </a>
+                <a href="/admin/monitor" class="btn btn-dark">
+                    📊 Live Monitor Τμημάτων (Console)
                 </a>
             </div>
-            <div style="text-align: center; margin-bottom: 25px;">
-                <a href="/admin/add-teacher-page" target="_blank" rel="noopener noreferrer" class="btn-primary" 
-                   style="display: inline-block; text-decoration: none; background-color: #38a169; padding: 10px 20px; width: auto; margin-left: 10px;">
-                   👤 Εισαγωγή Νέου Εκπαιδευτικού (Νέα Καρτέλα)
-                </a>
+
+            <div class="section-box">
+                <h3>➕ Προσθήκη Νέου Τμήματος & Μαθητών</h3>
+                
+                <div class="form-group">
+                    <label for="class-name">Όνομα Τμήματος (π.χ. Α1, Β2):</label>
+                    <input type="text" id="class-name" placeholder="Π.χ. Γ3">
+                </div>
+                
+                <div class="form-group">
+                    <label for="excel-file">Αρχείο Excel Μαθητών (Προαιρετικό):</label>
+                    <input type="file" id="excel-file" accept=".xlsx, .xls">
+                    <div class="info-text">Το Excel πρέπει να έχει στήλες: <b>Ονοματεπώνυμο</b> και <b>Email</b></div>
+                </div>
+
+                <button type="button" onclick="addClass()" class="btn btn-primary" style="margin-top: 10px;">
+                    💾 Δημιουργία Τμήματος & Εισαγωγή
+                </button>
             </div>
-            <h3>➕ Προσθήκη Νέου Τμήματος & Μαθητών</h3>
-            <label for="new-class-name" style="font-weight: bold; font-size: 14px;">Όνομα Τμήματος (π.χ. Α1, Β2):</label>
-            <input type="text" id="new-class-name" placeholder="π.χ. Γ3" 
-                required 
-                style="text-transform: uppercase;"
-                oninput="forceGreekUppercase(this)">
-            
-            <label style="font-weight: bold; font-size: 14px; display: block; margin-top: 15px;">Αρχείο Excel Μαθητών (Προαιρετικό):</label>
-            <input type="file" id="excel-file" accept=".xlsx, .xls" style="border: none; padding: 5px 0;">
-            <p style="color: #718096; font-size: 12px; margin-top: -5px;">Το Excel πρέπει να έχει στήλες: <strong>Ονοματεπώνυμο</strong> και <strong>Email</strong></p>
-            
-            <button onclick="addClassWithStudents()" class="btn-primary">Δημιουργία Τμήματος & Εισαγωγή</button>
-            
-            <div id="status-message" class="status-msg"></div>
-            
-            <h3 style="margin-top: 30px; color: #dc2626;">🚨 Ολικός Μηδενισμός (Hard Reset)</h3>
-            <p style="color: #718096; font-size: 13px; margin-top: -10px;">
-                <strong>ΠΡΟΣΟΧΗ:</strong> Η ενέργεια αυτή θα διαγράψει μόνιμα 
-                <span style="color: #dc2626; font-weight: bold;">ΟΛΑ τα τμήματα, ΟΛΟΥΣ τους μαθητές και ΟΛΕΣ τις απουσίες</span>. 
-                Θα παραμείνουν μόνο οι λογαριασμοί των καθηγητών.
-            </p>
-            <button onclick="hardResetDatabase()" class="btn-danger" style="margin-top: 0; background-color: #dc2626; font-weight: bold;">
-                ⚠️ ΔΙΑΓΡΑΦΗ ΟΛΩΝ ΤΩΝ ΔΕΔΟΜΕΝΩΝ
-            </button>
 
+            <div class="section-box danger-zone">
+                <h3>🚨 Ολικός Μηδενισμός (Hard Reset)</h3>
+                <div class="info-text" style="color: #9b2c2c; margin-bottom: 15px;">
+                    <b>ΠΡΟΣΟΧΗ:</b> Η ενέργεια αυτή θα διαγράψει μόνιμα <b>ΟΛΑ</b> τα τμήματα, τους μαθητές και τις απουσίες. Οι λογαριασμοί των καθηγητών θα παραμείνουν.
+                </div>
+                <button type="button" onclick="hardReset()" class="btn btn-danger">
+                    ⚠️ ΔΙΑΓΡΑΦΗ ΟΛΩΝ ΤΩΝ ΔΕΔΟΜΕΝΩΝ
+                </button>
+            </div>
 
-            <button onclick="adminLogout()" class="btn-danger">Έξοδος Διαχειριστή</button>
-        </div>
+            <a href="{{ url_for('logout') }}" class="btn btn-outline">
+                🚪 Έξοδος Διαχειριστή
+            </a>
+        {% endif %}
         
     </div>
 
     <script>
-
-        function hardResetDatabase() {
-            // Διπλό confirmation για ασφάλεια, επειδή η ενέργεια είναι καταστροφική!
-            if (!confirm("⚠️ Είστε ΑΠΟΛΥΤΑ σίγουροι; Αυτό θα σβήσει όλα τα τμήματα και τους μαθητές που ανεβάσατε!")) {
-                return;
+    // 🎯 ΑΥΤΟΜΑΤΗ ΣΥΜΠΛΗΡΩΣΗ ΑΠΟ ΤΟ ΟΝΟΜΑ ΤΟΥ ΑΡΧΕΙΟΥ
+    if (document.getElementById('excel-file')) {
+        document.getElementById('excel-file').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                let fileName = file.name;
+                fileName = fileName.replace(/\.[^/.]+$/, "");
+                fileName = fileName.trim().toUpperCase();
+                document.getElementById('class-name').value = fileName;
             }
-            if (!confirm("ΔΕΥΤΕΡΗ ΕΠΙΒΕΒΑΙΩΣΗ: Επιβεβαιώστε ότι θέλετε να αδειάσετε πλήρως τη βάση δεδομένων.")) {
-                return;
-            }
-
-            const msgDiv = document.getElementById('status-message');
-            msgDiv.style.color = '#718096';
-            msgDiv.innerText = "⏳ Γίνεται ολικός καθαρισμός βάσης...";
-
-            fetch('/admin/hard-reset', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'}
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    msgDiv.style.color = '#dc2626';
-                    msgDiv.innerText = `🚨 ${data.message}`;
-                    alert("Ο ολικός μηδενισμός ολοκληρώθηκε με επιτυχία!");
-                } else {
-                    msgDiv.style.color = '#e53e3e';
-                    msgDiv.innerText = `❌ Σφάλμα: ${data.message}`;
-                }
-            })
-            .catch(err => {
-                msgDiv.style.color = '#e53e3e';
-                msgDiv.innerText = "❌ Αποτυχία σύνδεσης με τον διακομιστή.";
-            });
-        }
-
-        // Έλεγχος αν ο admin είναι ήδη συνδεδεμένος από πριν (session)
-        window.onload = function() {
-            if ("{{ session.get('is_admin') }}" === "True") {
-                document.getElementById('login-box').style.display = 'none';
-                document.getElementById('panel-box').style.display = 'block';
-            }
-        };
-
-        function adminLogin() {
-            const password = document.getElementById('admin-password').value;
-            
-            fetch('/admin-login', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ password: password })
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    document.getElementById('login-box').style.display = 'none';
-                    document.getElementById('panel-box').style.display = 'block';
-                } else {
-                    alert(data.message);
-                }
-            });
-        }
-
-        function forceGreekUppercase(input) {
-    // Χάρτης αντιστοίχισης αγγλικών χαρακτήρων (μικρών & κεφαλαίων) σε ελληνικά κεφαλαία
-    const englishToGreekMap = {
-        'a': 'Α', 'A': 'Α',
-        'b': 'Β', 'B': 'Β',
-        'c': 'Ψ', 'C': 'Ψ',
-        'd': 'Δ', 'D': 'Δ',
-        'e': 'Ε', 'E': 'Ε',
-        'f': 'Φ', 'F': 'Φ',
-        'g': 'Γ', 'G': 'Γ',
-        'h': 'Η', 'H': 'Η',
-        'i': 'Ι', 'I': 'Ι',
-        'j': 'Ξ', 'J': 'Ξ',
-        'k': 'Κ', 'K': 'Κ',
-        'l': 'Λ', 'L': 'Λ',
-        'm': 'Μ', 'M': 'Μ',
-        'n': 'Ν', 'N': 'Ν',
-        'o': 'Ο', 'O': 'Ο',
-        'p': 'Π', 'P': 'Π',
-        'q': ':', 'Q': ':', // Το q στα ελληνικά είναι η άνω τελεία/ένδειξη ώρας, αλλά συνήθως δεν χρειάζεται στα τμήματα
-        'r': 'Ρ', 'R': 'Ρ',
-        's': 'Σ', 'S': 'Σ',
-        't': 'Τ', 'T': 'Τ',
-        'u': 'Θ', 'U': 'Θ',
-        'v': 'Ω', 'V': 'Ω',
-        'w': 'Σ', 'W': 'Σ', // Το αγγλικό w βγάζει το τελικό ς, το κάνουμε Σ κεφαλαίο
-        'x': 'Χ', 'X': 'Χ',
-        'y': 'Υ', 'Y': 'Υ',
-        'z': 'Ζ', 'Z': 'Ζ'
-    };
-
-    let current_value = input.value;
-    let corrected_value = "";
-
-    // Ελέγχουμε κάθε γράμμα που πληκτρολόγησε ο χρήστης
-    for (let i = 0; i < current_value.length; i++) {
-        let char = current_value[i];
-        
-        if (englishToGreekMap[char]) {
-            // Αν είναι αγγλικό γράμμα, το αλλάζουμε στο αντίστοιχο ελληνικό κεφαλαίο
-            corrected_value += englishToGreekMap[char];
-        } else {
-            // Αν είναι ήδη ελληνικό (μικρό), το κάνουμε κεφαλαίο. Αν είναι αριθμός, μένει ίδιος.
-            corrected_value += char.toUpperCase();
-        }
+        });
     }
 
-    // Κρατάμε ΜΟΝΟ ελληνικά κεφαλαία γράμματα και αριθμούς (διώχνουμε τυχόν ξένα σύμβολα)
-    input.value = corrected_value.replace(/[^Α-Ω0-9]/g, '');
-}
+    function addClass() {
+        const nameInput = document.getElementById('class-name').value.trim();
+        const fileInput = document.getElementById('excel-file').files[0];
 
+        if (!nameInput) {
+            alert("Παρακαλώ συμπληρώστε το όνομα του τμήματος ή επιλέξτε αρχείο Excel!");
+            return;
+        }
 
-      function addClassWithStudents() {
-            const className = document.getElementById('new-class-name').value.trim().toUpperCase();
-            const fileInput = document.getElementById('excel-file');
-            const msgDiv = document.getElementById('status-message');
-            
-            if (!className) {
-                alert("Παρακαλώ δώστε ένα όνομα τμήματος!");
-                return;
+        const formData = new FormData();
+        formData.append('class_name', nameInput);
+        if (fileInput) {
+            formData.append('excel_file', fileInput);
+        }
+
+        fetch('/admin/add-class', {
+            method: 'POST',
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            alert(data.message);
+            if (data.status === 'success') {
+                window.location.reload();
             }
+        })
+        .catch(err => alert("Σφάλμα κατά την αποστολή"));
+    }
 
-            // Χρησιμοποιούμε FormData επειδή στέλνουμε αρχείο (όχι απλό JSON)
-            const formData = new FormData();
-            formData.append('class_name', className);
-            if (fileInput.files.length > 0) {
-                formData.append('excel_file', fileInput.files[0]);
-            }
-
-            msgDiv.style.color = '#4a5568';
-            msgDiv.innerText = "⏳ Γίνεται επεξεργασία... Παρακαλώ περιμένετε.";
-
-            fetch('/admin/add-class', {
-                method: 'POST',
-                body: formData // Το FormData θέτει αυτόματα τα σωστά headers
-            })
+    function hardReset() {
+        if (confirm("Είστε ΑΠΟΛΥΤΑ σίγουροι; Αυτή η ενέργεια δεν αναιρείται!")) {
+            fetch('/admin/hard-reset', { method: 'POST' })
             .then(res => res.json())
             .then(data => {
-                if (data.status === 'success') {
-                    msgDiv.style.color = '#2f855a';
-                    msgDiv.innerText = `✅ ${data.message}`;
-                    document.getElementById('new-class-name').value = ''; 
-                    fileInput.value = ''; // Καθαρισμός αρχείου
-                } else {
-                    msgDiv.style.color = '#e53e3e';
-                    msgDiv.innerText = `❌ Σφάλμα: ${data.message}`;
-                }
-            })
-            .catch(err => {
-                msgDiv.style.color = '#e53e3e';
-                msgDiv.innerText = "❌ Αποτυχία σύνδεσης με τον διακομιστή.";
+                alert(data.message);
+                if (data.status === 'success') window.location.reload();
             });
         }
-
-        function adminLogout() {
-            fetch('/logout') // Χρησιμοποιούμε το υπάρχον logout για καθαρισμό
-            .then(() => {
-                window.location.reload();
-            });
-        }
-    </script>
+    }
+</script>
 </body>
 </html>
