@@ -177,6 +177,10 @@
                         <label for="admin-pass">Κωδικός Πρόσβασης:</label>
                         <input type="password" id="admin-pass" name="password" placeholder="Πληκτρολογήστε τον κωδικό" required>
                     </div>
+                    <div class="form-group">
+                        <label for="admin-token">Κωδικός TOTP (Token):</label>
+                        <input type="text" id="admin-token" name="token" placeholder="6-ψήφιος κωδικός" required autocomplete="off" pattern="[0-9]{6}" inputmode="numeric" maxlength="6">
+                    </div>
                     <button type="submit" class="btn btn-dark">
                         🔓 Σύνδεση στο Πάνελ
                     </button>

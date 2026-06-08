@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ρύθμιση 2FA Διαχειριστή</title>
+    <!-- Google Fonts for premium typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+            --glass-bg: rgba(30, 41, 59, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --primary: #6366f1;
+            --primary-glow: rgba(99, 102, 241, 0.4);
+            --primary-hover: #4f46e5;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --success: #10b981;
+            --warning: #f59e0b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: var(--bg-gradient);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+
+        .container {
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            padding: 40px 30px;
+            border-radius: 24px;
+            width: 100%;
+            max-width: 520px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3),
+                        0 0 80px rgba(99, 102, 241, 0.1);
+            text-align: center;
+            animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            background: linear-gradient(to right, #a5b4fc, #e0e7ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.5px;
+        }
+
+        .subtitle {
+            font-size: 15px;
+            color: var(--text-muted);
+            margin-bottom: 30px;
+            line-height: 1.5;
+        }
+
+        .warning-banner {
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid rgba(245, 158, 11, 0.25);
+            color: #fbd38d;
+            padding: 14px 16px;
+            border-radius: 12px;
+            font-size: 13.5px;
+            line-height: 1.5;
+            text-align: left;
+            margin-bottom: 25px;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        .warning-icon {
+            font-size: 18px;
+            margin-top: 1px;
+            flex-shrink: 0;
+        }
+
+        .qr-container {
+            background: #ffffff;
+            padding: 16px;
+            border-radius: 16px;
+            display: inline-block;
+            margin-bottom: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative;
+        }
+
+        .qr-container:hover {
+            transform: scale(1.04);
+            box-shadow: 0 15px 35px var(--primary-glow);
+        }
+
+        /* SVG styling inside QR container */
+        .qr-container svg {
+            display: block;
+            width: 200px;
+            height: 200px;
+        }
+
+        .instructions {
+            text-align: left;
+            margin-bottom: 25px;
+            background: rgba(255, 255, 255, 0.02);
+            padding: 20px;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.04);
+        }
+
+        .instructions h3 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: #c7d2fe;
+        }
+
+        .instructions ol {
+            padding-left: 20px;
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+
+        .instructions li {
+            margin-bottom: 10px;
+            line-height: 1.4;
+        }
+
+        .instructions li:last-child {
+            margin-bottom: 0;
+        }
+
+        .secret-box-container {
+            margin-bottom: 30px;
+            text-align: left;
+        }
+
+        .secret-label {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .secret-field-wrapper {
+            display: flex;
+            gap: 8px;
+        }
+
+        .secret-code {
+            flex-grow: 1;
+            background: rgba(0, 0, 0, 0.25);
+            border: 1px solid var(--glass-border);
+            padding: 14px;
+            border-radius: 10px;
+            font-family: monospace;
+            font-size: 15px;
+            color: #818cf8;
+            letter-spacing: 2px;
+            text-align: center;
+            font-weight: 600;
+            overflow-x: auto;
+            white-space: nowrap;
+        }
+
+        .btn-copy {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 0 18px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-copy:hover {
+            background: var(--primary-hover);
+            box-shadow: 0 0 15px var(--primary-glow);
+        }
+
+        .btn-copy:active {
+            transform: scale(0.96);
+        }
+
+        .tooltip {
+            position: absolute;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%) translateY(5px);
+            background: var(--success);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .tooltip::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border-width: 5px;
+            border-style: solid;
+            border-color: var(--success) transparent transparent transparent;
+        }
+
+        .tooltip.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .actions {
+            border-top: 1px solid var(--glass-border);
+            padding-top: 25px;
+        }
+
+        .btn-action {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            color: var(--text-main);
+            padding: 14px 28px;
+            border-radius: 12px;
+            text-decoration: none;
+            font-size: 15px;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            width: 100%;
+        }
+
+        .btn-action:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-1px);
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 480px) {
+            .container {
+                padding: 30px 20px;
+            }
+            h1 {
+                font-size: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>🔐 Ρύθμιση 2FA Διαχειριστή</h1>
+        <p class="subtitle">Ενεργοποιήστε την offline επιβεβαίωση δύο παραγόντων για μέγιστη ασφάλεια.</p>
+
+        <div class="warning-banner">
+            <span class="warning-icon">⚠️</span>
+            <div>
+                <strong>Σημείωση Ασφαλείας:</strong> Αυτή η σελίδα είναι προσωρινή. Μόλις σαρώσετε το QR Code, συνιστάται να την απενεργοποιήσετε ή να την αφαιρέσετε από τον κώδικα.
+            </div>
+        </div>
+
+        <div class="qr-container">
+            <!-- Render offline SVG QR Code directly -->
+            {{ svg_code | safe }}
+        </div>
+
+        <div class="secret-box-container">
+            <span class="secret-label">Secret Key (Μυστικό Κλειδί)</span>
+            <div class="secret-field-wrapper">
+                <div class="secret-code" id="secret-text">{{ secret }}</div>
+                <button class="btn-copy" onclick="copySecret()">
+                    <span class="tooltip" id="copy-tooltip">Αντιγράφηκε!</span>
+                    📋 Αντιγραφή
+                </button>
+            </div>
+        </div>
+
+        <div class="instructions">
+            <h3>📝 Οδηγίες Σύνδεσης</h3>
+            <ol>
+                <li>Εγκαταστήστε μια εφαρμογή TOTP (π.χ. <b>Google Authenticator</b> ή <b>Microsoft Authenticator</b>) στο κινητό σας.</li>
+                <li>Ανοίξτε την εφαρμογή και επιλέξτε <b>"Σάρωση κωδικού QR"</b> (Scan QR Code) ή εισαγάγετε το παραπάνω Secret Key χειροκίνητα.</li>
+                <li>Η εφαρμογή θα ξεκινήσει να παράγει έναν 6ψήφιο κωδικό που ανανεώνεται κάθε 30 δευτερόλεπτα.</li>
+                <li>Χρησιμοποιήστε αυτόν τον κωδικό κατά τη σύνδεσή σας στο Πάνελ Διαχειριστή.</li>
+            </ol>
+        </div>
+
+        <div class="actions">
+            <a href="/admin" class="btn-action">
+                🔓 Μετάβαση στη Σελίδα Εισόδου
+            </a>
+        </div>
+    </div>
+
+    <script>
+        function copySecret() {
+            const secretText = document.getElementById('secret-text').innerText;
+            navigator.clipboard.writeText(secretText).then(() => {
+                const tooltip = document.getElementById('copy-tooltip');
+                tooltip.classList.add('show');
+                setTimeout(() => {
+                    tooltip.classList.remove('show');
+                }, 2000);
+            }).catch(err => {
+                console.error('Αποτυχία αντιγραφής: ', err);
+            });
+        }
+    </script>
+</body>
+</html>

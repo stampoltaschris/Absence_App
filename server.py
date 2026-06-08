@@ -7,6 +7,11 @@ import re
 from email.mime.text import MIMEText
 from datetime import datetime
 from openpyxl import load_workbook
+import pyotp
+import qrcode
+import qrcode.image.svg
+import io
+import base64
 
 try:
     from dotenv import load_dotenv
@@ -20,7 +25,8 @@ app.secret_key = 'super_secret_key_for_sessions'
 
 LOCKED_CLASSES = {}
 ACTIVE_SESSIONS = {}
-ADMIN_PASSWORD = "12345" 
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "AdminSecure2026!")
+ADMIN_TOTP_SECRET = os.getenv("ADMIN_TOTP_SECRET", "ADMIN2FASECRETKEY32CHARSFORSAFET") 
 
 @app.route('/manifest.json')
 def serve_manifest():
@@ -145,6 +151,30 @@ def unlock_class_admin():
         del LOCKED_CLASSES[class_name]
         
     return jsonify({"status": "success"})
+
+
+@app.route('/admin/totp-setup')
+def totp_setup():
+    totp = pyotp.TOTP(ADMIN_TOTP_SECRET)
+    provisioning_uri = totp.provisioning_uri(name="Admin", issuer_name="AbsenceApp")
+    
+    # Generate SVG QR Code
+    factory = qrcode.image.svg.SvgPathImage
+    img = qrcode.make(provisioning_uri, image_factory=factory)
+    stream = io.BytesIO()
+    img.save(stream)
+    svg_code = stream.getvalue().decode('utf-8')
+    
+    # Strip the XML declaration so it can be embedded directly in HTML
+    if svg_code.startswith("<?xml"):
+        idx = svg_code.find("<svg")
+        if idx != -1:
+            svg_code = svg_code[idx:]
+            
+    return render_template('totp_setup.html', 
+                           secret=ADMIN_TOTP_SECRET, 
+                           svg_code=svg_code, 
+                           provisioning_uri=provisioning_uri)
 
 @app.route('/admin')
 def admin_panel():
@@ -429,23 +459,27 @@ def send_absence():
 def admin_login_process():
     data = request.json
     password = data.get('password')
+    token = data.get('token')
     
-    if password == ADMIN_PASSWORD:
+    totp = pyotp.TOTP(ADMIN_TOTP_SECRET)
+    if password == ADMIN_PASSWORD and token and totp.verify(token, valid_window=1):
         session['is_admin'] = True
         return jsonify({"status": "success"})
-    return jsonify({"status": "error", "message": "Λάθος κωδικός πρόσβασης διαχειριστή!"})
+    return jsonify({"status": "error", "message": "Λάθος κωδικός πρόσβασης ή κωδικός TOTP (Token) διαχειριστή!"})
 
 # 🎯 ΝΕΟ ΣΥΜΒΑΤΟ ROUTE: Διαβάζει τον κωδικό από την κλασική φόρμα HTML και κάνει redirect
 @app.route('/admin-login-direct', methods=['POST'])
 def admin_login_direct():
     password = request.form.get('password') # Διαβάζει το input της φόρμας
+    token = request.form.get('token') # Διαβάζει το token της φόρμας
     
-    if password == ADMIN_PASSWORD:
+    totp = pyotp.TOTP(ADMIN_TOTP_SECRET)
+    if password == ADMIN_PASSWORD and token and totp.verify(token, valid_window=1):
         session['is_admin'] = True
         return redirect(url_for('admin_panel')) # Σε στέλνει «καρφωτό» μέσα στο ξεκλείδωτο /admin
         
-    # Αν ο κωδικός είναι λάθος, επιστρέφει στην είσοδο
-    return "Λάθος κωδικός πρόσβασης διαχειριστή! <a href='/admin'>Δοκιμάστε ξανά</a>"
+    # Αν ο κωδικός ή το token είναι λάθος, επιστρέφει στην είσοδο
+    return "Λάθος κωδικός πρόσβασης ή κωδικός TOTP (Token) διαχειριστή! <a href='/admin'>Δοκιμάστε ξανά</a>"
 
 # =========================================================================
 # ΔΗΜΙΟΥΡΓΙΑ ΤΜΗΜΑΤΟΣ ΚΑΙ PARSING EXCEL
@@ -609,5 +643,12 @@ if __name__ == '__main__':
     
     conn.commit()
     conn.close()
+
+    # Log 2FA details on startup
+    print("=" * 70)
+    print("[2FA CONFIGURATION] ADMINISTRATOR TWO-FACTOR AUTHENTICATION DETAILS:")
+    print(f"   Secret Key:  {ADMIN_TOTP_SECRET}")
+    print(f"   Setup URL:   http://localhost:5000/admin/totp-setup")
+    print("=" * 70)
 
     app.run(debug=True, host='0.0.0.0', port=5000)
