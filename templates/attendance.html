@@ -1,62 +1,198 @@
 <!DOCTYPE html>
 <html lang="el">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Καταχώριση - {{ class_name }}</title>
     <style>
-        body { 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            text-align: center; margin: 0; padding: 0; background-color: #f0f2f5; color: #333;
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f2f5;
+            color: #333;
         }
-        .navbar {
-            background-color: #fff; padding: 15px 30px; display: flex;
-            justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        }
-        .user-info { font-size: 16px; color: #4a5568; }
-        .live-clock {
-            font-size: 18px; font-weight: bold; color: #2c3e50;
-            background-color: #edf2f7; padding: 5px 15px; border-radius: 20px; border: 1px solid #e2e8f0;
-        }
-        .logout-btn {
-            background-color: #dc3545; color: white; text-decoration: none;
-            padding: 8px 16px; border-radius: 6px; font-weight: bold; font-size: 14px;
-        }
-        .main-container { padding: 30px 20px; }
-        h2 { color: #2c3e50; margin-top: 0; }
 
-        .student-card { 
-            background: white; padding: 15px; margin: 10px auto; max-width: 450px; 
-            border-radius: 8px; display: flex; justify-content: space-between; align-items: center; 
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: 0.3s; border: 1px solid transparent;
+        .navbar {
+            background-color: #fff;
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
         }
-        
-        /* Κουμπί Απουσίας (Αρχικό στυλ) */
-        .absence-btn { 
-            background-color: #e2e8f0; color: #4a5568; border: 1px solid #cbd5e1; 
-            padding: 10px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; transition: 0.2s;
+
+        .user-info {
+            font-size: 16px;
+            color: #4a5568;
         }
-        
-        /* Στυλ όταν ο μαθητής επιλεγεί ως ΑΠΩΝ (Πριν την υποβολή) */
-        .student-card.marked-absent { background-color: #fff5f5; border: 1px solid #feb2b2; }
-        .absence-btn.marked-style { background-color: #e53e3e; color: white; border-color: #e53e3e; }
-        
-        /* Το μεγάλο τελικό κουμπί ολοκλήρωσης */
-        .submit-btn { 
-            background-color: #38a169; color: white; border: none; padding: 15px 30px; 
-            border-radius: 8px; font-size: 18px; cursor: pointer; margin-top: 25px; font-weight: bold;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 100%; max-width: 450px; transition: 0.2s;
+
+        .live-clock {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2c3e50;
+            background-color: #edf2f7;
+            padding: 5px 15px;
+            border-radius: 20px;
+            border: 1px solid #e2e8f0;
         }
-        .submit-btn:hover { background-color: #2f855a; }
-        
-        .warning-banner { 
-            background-color: #fff3cd; color: #856404; padding: 10px; margin: 10px auto; 
-            max-width: 450px; border-radius: 6px; display: none; font-weight: bold; 
+
+        .logout-btn {
+            background-color: #dc3545;
+            color: white;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 14px;
         }
-        .back-link { display: inline-block; margin-top: 15px; color: #007bff; text-decoration: none; font-weight: bold; }
+
+        .main-container {
+            padding: 30px 20px;
+        }
+
+        h2 {
+            color: #2c3e50;
+            margin-top: 0;
+        }
+
+        .student-card {
+            background: white;
+            padding: 15px;
+            margin: 10px auto;
+            max-width: 450px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            transition: 0.3s;
+            border: 1px solid transparent;
+        }
+
+        .absence-btn {
+            background-color: #e2e8f0;
+            color: #4a5568;
+            border: 1px solid #cbd5e1;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.2s;
+        }
+
+        .student-card.marked-absent {
+            background-color: #fff5f5;
+            border: 1px solid #feb2b2;
+        }
+
+        .absence-btn.marked-style {
+            background-color: #e53e3e;
+            color: white;
+            border-color: #e53e3e;
+        }
+
+        .submit-btn {
+            background-color: #38a169;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 18px;
+            cursor: pointer;
+            margin-top: 25px;
+            font-weight: bold;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 450px;
+            transition: 0.2s;
+        }
+
+        .submit-btn:hover {
+            background-color: #2f855a;
+        }
+
+        .warning-banner {
+            background-color: #fff3cd;
+            color: #856404;
+            padding: 10px;
+            margin: 10px auto;
+            max-width: 450px;
+            border-radius: 6px;
+            display: none;
+            font-weight: bold;
+        }
+
+        /* 🎯 CSS MODAL */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            visibility: hidden;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal-box {
+            background-color: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+            max-width: 400px;
+            width: 90%;
+            border-top: 8px solid #e53e3e;
+        }
+
+        .modal-box h3 {
+            color: #e53e3e;
+            margin-top: 0;
+            font-size: 24px;
+        }
+
+        .modal-box p {
+            font-size: 17px;
+            color: #2d3748;
+            line-height: 1.6;
+        }
+
+        .modal-close-btn {
+            background-color: #38a169;
+            color: white;
+            border: none;
+            padding: 14px 25px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-top: 20px;
+            width: 100%;
+            transition: 0.2s;
+        }
+
+        .modal-close-btn:hover {
+            background-color: #2f855a;
+        }
     </style>
 </head>
+
 <body>
+
+    <div id="reminder-modal" class="modal-overlay">
+        <div class="modal-box">
+            <h3>⚠️ Προσοχή!</h3>
+            <p>Παρακαλώ προχωρήστε σε καταχώριση απουσιών για την τρέχουσα ώρα.</p>
+            <button class="modal-close-btn" onclick="closeReminderModal()">🛑 Σταμάτημα Ήχου & Κλείσιμο</button>
+        </div>
+    </div>
 
     <div class="navbar">
         <div class="user-info">Σύνδεση ως: <b>{{ username }}</b></div>
@@ -67,48 +203,58 @@
     <div class="main-container">
         <h2>Τμήμα {{ class_name }} - {{ hour }} Ώρα</h2>
 
-        <div id="warning-msg" class="warning-banner">⚠️ Απομένουν λιγότερα από 10 λεπτά! Παρακαλώ ελέγξτε τις απουσίες.</div>
+        <div style="text-align: center; margin-bottom: 15px;">
+            <button id="all-present-btn" onclick="submitAllPresent()"
+                style="background-color: #28a745; color: white; padding: 10px 20px; font-size: 16px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">
+                🙋‍♂️ Όλοι παρόντες
+            </button>
+        </div>
+
+        <div id="warning-msg" class="warning-banner">⚠️ Απομένουν λιγότερα από 10 λεπτά! Παρακαλώ ελέγξτε τις απουσίες.
+        </div>
 
         {% for student in students %}
         <div class="student-card" id="card-{{ student.id }}">
             <span>{{ student.name }}</span>
-            <button class="absence-btn" id="btn-{{ student.id }}" onclick="toggleAbsence({{ student.id }})">Απών</button>
+            <button class="absence-btn" id="btn-{{ student.id }}"
+                onclick="toggleAbsence({{ student.id }})">Απών</button>
         </div>
         {% endfor %}
 
         <button class="submit-btn" onclick="submitAttendance()">🔒 Οριστική Υποβολή & Αποστολή Email</button>
-        
-        <br>
-<a href="/back-to-dashboard" style="text-decoration: none;">
-    <button type="button" style="background-color: #4a5568; color: white; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer;">
-        ⬅️ Επιστροφή στην Επιλογή Τμήματος
-    </button>
-</a>    </div>
+
+        <br><br>
+        <a href="/back-to-dashboard" style="text-decoration: none;">
+            <button type="button"
+                style="background-color: #4a5568; color: white; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer;">
+                ⬅️ Επιστροφή στην Επιλογή Τμήματος
+            </button>
+        </a>
+    </div>
 
     <audio id="alert-sound" src="/static/alert.mp3" preload="auto"></audio>
 
     <script>
-        // Πίνακας που θα κρατάει τα IDs των μαθητών που λείπουν
-        let absentStudents = []; 
-        let isSubmitted = false; // Μεταβλητή για να ξέρουμε αν κλείδωσε η σελίδα
+        let absentStudents = [];
+        let isSubmitted = false;
+        let reminderInterval;
+        let alarm = document.getElementById("alert-sound");
 
-        // 1. Λειτουργία Επιλογής / Ακύρωσης Απουσίας (Toggle)
+        // 🎯 ΜΕΤΑΒΛΗΤΗ ΠΟΥ ΘΥΜΑΤΑΙ ΑΝ ΕΧΕΙ ΗΔΗ ΧΤΥΠΗΣΕΙ Η ΩΡΑ ΜΕΣΑ ΣΤΗ ΣΕΛΙΔΑ
+        let lastTriggeredTime = "";
+
+        // 1. Λειτουργία Επιλογής / Ακύρωσης Απουσίας
         function toggleAbsence(studentId) {
-            if (isSubmitted) return; // Αν έχει γίνει οριστική υποβολή, κλειδώνουν τα κουμπιά
-
+            if (isSubmitted) return;
             const card = document.getElementById(`card-${studentId}`);
             const btn = document.getElementById(`btn-${studentId}`);
-            
             const index = absentStudents.indexOf(studentId);
-            
             if (index === -1) {
-                // Αν δεν υπάρχει, τον βάζουμε στους απόντες (Κοκκινίζει η κάρτα)
                 absentStudents.push(studentId);
                 card.classList.add('marked-absent');
                 btn.classList.add('marked-style');
                 btn.innerText = "Επιλέχθηκε";
             } else {
-                // Αν υπάρχει ήδη, τον βγάζουμε (Ακύρωση λάθους - Ξαναγίνεται λευκό)
                 absentStudents.splice(index, 1);
                 card.classList.remove('marked-absent');
                 btn.classList.remove('marked-style');
@@ -116,47 +262,63 @@
             }
         }
 
-        // 2. Λειτουργία Οριστικής Υποβολής (Όταν πατηθεί το μεγάλο κουμπί)
+        // 2. Λειτουργία Οριστικής Υποβολής
         function submitAttendance() {
             if (isSubmitted) return;
-            
             let message = `Θέλετε να προχωρήσετε σε οριστική υποβολή; \nΘα σταλούν ${absentStudents.length} email απουσίας.`;
             if (absentStudents.length === 0) {
                 message = "Δεν έχετε επιλέξει κανέναν απόντα. Θέλετε να υποβάλετε το τμήμα με 'Όλοι Παρόντες';";
             }
-
-            if(confirm(message)) {
+            if (confirm(message)) {
                 fetch('/send-absence', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ student_ids: absentStudents }) // Στέλνουμε όλη τη λίστα μαζί
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ student_ids: absentStudents })
                 })
-                .then(res => res.json())
-                .then(data => {
-                    if(data.status === 'success') {
-                        alert(data.message);
-                        isSubmitted = true;
-                        document.getElementById('warning-msg').style.display = 'none';
-                        
-                        // Κλειδώνουμε οπτικά την οθόνη (Πρασινίζουν οι επιλεγμένοι απόντες)
-                        absentStudents.forEach(id => {
-                            document.getElementById(`card-${id}`).style.backgroundColor = '#d4edda';
-                            document.getElementById(`card-${id}`).style.borderColor = '#c3e6cb';
-                            document.getElementById(`btn-${id}`).style.backgroundColor = '#28a745';
-                            document.getElementById(`btn-${id}`).innerText = "Στάλθηκε";
-                        });
-                        
-                        // Απενεργοποιούμε το μεγάλο κουμπί
-                        const submitBtn = document.querySelector('.submit-btn');
-                        submitBtn.style.backgroundColor = '#a0aec0';
-                        submitBtn.innerText = "✓ Η απουσίες υποβλήθηκαν";
-                        submitBtn.disabled = true;
-                    } else { alert("Σφάλμα κατά την υποβολή."); }
-                });
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            alert(data.message);
+                            isSubmitted = true;
+                            document.getElementById('warning-msg').style.display = 'none';
+                            stopWarningSound();
+                            clearInterval(reminderInterval);
+                            absentStudents.forEach(id => {
+                                document.getElementById(`card-${id}`).style.backgroundColor = '#d4edda';
+                                document.getElementById(`card-${id}`).style.borderColor = '#c3e6cb';
+                                document.getElementById(`btn-${id}`).style.backgroundColor = '#28a745';
+                                document.getElementById(`btn-${id}`).innerText = "Στάλθηκε";
+                            });
+                            const submitBtn = document.querySelector('.submit-btn');
+                            submitBtn.style.backgroundColor = '#a0aec0';
+                            submitBtn.innerText = "✓ Η απουσίες υποβλήθηκαν";
+                            submitBtn.disabled = true;
+                        } else { alert("Σφάλμα κατά την υποβολή."); }
+                    });
             }
         }
 
-        // Ρολόι και Ωράριο Προειδοποίησης (Όπως πριν)
+        // 3. Κουμπί "Όλοι Παρόντες"
+        function submitAllPresent() {
+            if (isSubmitted) return;
+            fetch('/send-absence', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ student_ids: [] })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        alert("Η υποβολή ολοκληρώθηκε! Όλοι οι μαθητές σημειώθηκαν ως παρόντες.");
+                        isSubmitted = true;
+                        stopWarningSound();
+                        clearInterval(reminderInterval);
+                        window.location.href = '/dashboard';
+                    } else { alert("Σφάλμα: " + data.message); }
+                });
+        }
+
+        // 4. Live Ρολόι Navbar
         function updateClock() {
             const now = new Date();
             const hours = String(now.getHours()).padStart(2, '0');
@@ -166,7 +328,8 @@
         }
         setInterval(updateClock, 1000); updateClock();
 
-        const SCHOOL_SCHEDULE = {"1η":"09:00","2η":"09:50","3η":"10:45","4η":"11:40","5η":"12:35","6η":"13:25","7η":"14:10"};
+        // 5. Έλεγχος Warning Banner
+        const SCHOOL_SCHEDULE = { "1η": "09:00", "2η": "09:50", "3η": "10:45", "4η": "11:40", "5η": "12:35", "6η": "13:25", "7η": "14:10" };
         const currentHourPeriod = "{{ hour }}";
 
         function checkTimeRemaining() {
@@ -176,13 +339,85 @@
             const now = new Date(); const [endHours, endMinutes] = endTimeStr.split(':').map(Number);
             const endTime = new Date(); endTime.setHours(endHours, endMinutes, 0, 0);
             const diffMinutes = Math.floor((endTime - now) / 1000 / 60);
-
             if (diffMinutes >= 0 && diffMinutes <= 10) {
                 document.getElementById('warning-msg').style.display = 'block';
-                document.getElementById('alert-sound').play().catch(e => {});
             }
         }
         setInterval(checkTimeRemaining, 30000); setTimeout(checkTimeRemaining, 2000);
+
+        // 6. ΔΙΑΧΕΙΡΙΣΗ ΗΧΟΥ
+        function playWarningSound() {
+            if (alarm && alarm.paused) {
+                alarm.loop = true;
+                alarm.play().catch(e => console.log("Αναμονή για αλληλεπίδραση χρήστη:", e));
+            }
+        }
+
+        // Ξεκλειδώνουμε κρυφά την άδεια ήχου του tablet με το πρώτο scroll/άγγιγμα στη σελίδα
+        document.body.addEventListener('touchstart', function () {
+            if (alarm && alarm.paused && alarm.currentTime === 0) {
+                alarm.play().then(() => { alarm.pause(); alarm.currentTime = 0; }).catch(e => { });
+            }
+        }, { once: true });
+
+        document.body.addEventListener('click', function () {
+            if (alarm && alarm.paused && alarm.currentTime === 0) {
+                alarm.play().then(() => { alarm.pause(); alarm.currentTime = 0; }).catch(e => { });
+            }
+        }, { once: true });
+
+        function stopWarningSound() {
+            if (alarm) {
+                alarm.pause();
+                alarm.currentTime = 0;
+            }
+        }
+
+        // 7. 🎯 ΕΛΕΓΧΟΣ ΩΡΑΣ: ΕΝΕΡΓΟΠΟΙΕΙΤΑΙ LIVE ΚΑΙ ΜΟΝΟ ΜΙΑ ΦΟΡΑ ΑΝΑ ΛΕΠΤΟ
+        function checkTimeForReminder() {
+            if (isSubmitted) return;
+            let now = new Date();
+            let timeStr = now.toTimeString().split(' ')[0].substring(0, 5);
+
+            // ⚠️ Ώρες αυτόματης ενεργοποίησης (Ρυθμίστηκε στο 11:55 και 11:56 για τη live δοκιμή σου!)
+            let messageWindows = [
+                "11:55", "11:56",
+                "08:55", "09:50", "10:45", "11:40", "12:35", "13:25", "14:20"
+            ];
+
+            // 🎯 Αν η ώρα είναι στη λίστα ΚΑΙ δεν έχουμε ήδη χτυπήσει για ΑΥΤΟ το λεπτό
+            if (messageWindows.includes(timeStr) && lastTriggeredTime !== timeStr) {
+
+                // Καταγράφουμε ότι χτυπήσαμε τώρα, ώστε να μην ξαναμπει στο if στα επόμενα 10 δευτερόλεπτα
+                lastTriggeredTime = timeStr;
+
+                // 1. Εμφάνιση του Παραθύρου LIVE στην οθόνη
+                const modal = document.getElementById("reminder-modal");
+                modal.style.visibility = "visible";
+                modal.style.opacity = "1";
+
+                // 2. Ο ήχος ξεκινάει να βαράει LIVE σε loop
+                playWarningSound();
+            }
+        }
+
+        // 8. ΚΛΕΙΣΙΜΟ ΚΑΙ ΣΙΓΑΣΗ ΑΠΟ ΤΟΝ ΚΑΘΗΓΗΤΗ
+        function closeReminderModal() {
+            stopWarningSound(); // 1. Σταματάει ο ήχος αμέσως
+
+            const modal = document.getElementById("reminder-modal");
+            modal.style.visibility = "hidden";
+            modal.style.opacity = "0"; // 2. Κλείνει το παράθυρο
+
+            // ❌ ΔΕΝ κάνουμε πλέον clearInterval, ώστε το χρονόμετρο να παραμένει ενεργό 
+            // για τις επόμενες διδακτικές ώρες live!
+            console.log("Το live modal έκλεισε επιτυχώς.");
+        }
+
+        checkTimeForReminder();
+        // Έλεγχος ανά 5 δευτερόλεπτα για απόλυτη live ακρίβεια
+        reminderInterval = setInterval(checkTimeForReminder, 5000);
     </script>
 </body>
+
 </html>
