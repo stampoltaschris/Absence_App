@@ -1,0 +1,4 @@
+# Αγνοήσε τη βάση δεδομένων και τα προσωρινά αρχεία της SQLite
+database.db
+database.db-wal
+database.db-shm

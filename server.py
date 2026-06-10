@@ -211,6 +211,81 @@ def admin_add_teacher():
             return jsonify({"status": "error", "message": str(e)}), 500
 
 # =========================================================================
+# ΔΙΑΧΕΙΡΙΣΗ ΛΟΓΑΡΙΑΣΜΩΝ ΕΚΠΑΙΔΕΥΤΙΚΩΝ (ADMIN CRUD)
+# =========================================================================
+
+@app.route('/admin/manage-teachers-page')
+def admin_manage_teachers_page():
+    if not session.get('is_admin'):
+        return "Μη εξουσιοδοτημένη πρόσβαση", 403
+    return render_template('manage_teachers.html')
+
+@app.route('/admin/api/get-teachers', methods=['GET'])
+def get_teachers_api():
+    if not session.get('is_admin'):
+        return jsonify({"status": "error", "message": "Unauthorized"}), 403
+    
+    with get_db_connection() as conn:
+        try:
+            # Παίρνουμε id, name και username από τον πίνακα users
+            rows = conn.execute('SELECT id, name, username FROM users ORDER BY name ASC').fetchall()
+            teachers_list = [{"id": row['id'], "name": row['name'], "username": row['username']} for row in rows]
+            return jsonify({"status": "success", "teachers": teachers_list})
+        except Exception as e:
+            return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route('/admin/api/change-teacher-password', methods=['POST'])
+def change_teacher_password_api():
+    if not session.get('is_admin'):
+        return jsonify({"status": "error", "message": "Unauthorized"}), 403
+        
+    data = request.json
+    teacher_id = data.get('id')
+    new_password = data.get('new_password', '').strip()
+    
+    if not teacher_id or not new_password:
+        return jsonify({"status": "error", "message": "Ο κωδικός δεν μπορεί να είναι κενός!"}), 400
+        
+    with get_db_connection() as conn:
+        try:
+            conn.execute('UPDATE users SET password = ? WHERE id = ?', (new_password, teacher_id))
+            conn.commit()
+            return jsonify({"status": "success", "message": "Ο κωδικός πρόσβασης ενημερώθηκε!"})
+        except Exception as e:
+            return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route('/admin/api/delete-teacher-account', methods=['POST'])
+def delete_teacher_account_api():
+    if not session.get('is_admin'):
+        return jsonify({"status": "error", "message": "Unauthorized"}), 403
+        
+    data = request.json
+    teacher_id = data.get('id')
+    
+    if not teacher_id:
+        return jsonify({"status": "error", "message": "Missing ID"}), 400
+        
+    with get_db_connection() as conn:
+        try:
+            # 🎯 Προαιρετικό Safety Check: βρίσκουμε το username πριν τη διαγραφή για να τον πετάξουμε αν είναι live
+            teacher = conn.execute('SELECT username FROM users WHERE id = ?', (teacher_id,)).fetchone()
+            if teacher:
+                target_user = teacher['username']
+                # Αν είναι online, τον κάνουμε kick ακαριαία από τα ενεργά sessions
+                if target_user in ACTIVE_SESSIONS:
+                    del ACTIVE_SESSIONS[target_user]
+                to_remove = [k for k, v in LOCKED_CLASSES.items() if v == target_user]
+                for k in to_remove:
+                    del LOCKED_CLASSES[k]
+
+            conn.execute('DELETE FROM users WHERE id = ?', (teacher_id,))
+            conn.commit()
+            return jsonify({"status": "success", "message": "Ο λογαριασμός διαγράφηκε οριστικά!"})
+        except Exception as e:
+            return jsonify({"status": "error", "message": str(e)}), 500
+
+
+# =========================================================================
 # ΛΟΓΙΚΗ LOGIN ΕΚΠΑΙΔΕΥΤΙΚΟΥ
 # =========================================================================
 @app.route('/login', methods=['POST'])

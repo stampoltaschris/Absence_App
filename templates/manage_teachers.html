@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="el">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Διαχείριση Εκπαιδευτικών</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f2f5;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        }
+
+        h2 {
+            color: #2c3e50;
+            margin-top: 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th,
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #e2e8f0;
+            text-align: left;
+        }
+
+        th {
+            background-color: #edf2f7;
+            color: #4a5568;
+        }
+
+        tr:hover {
+            background-color: #f7fafc;
+        }
+
+        .btn {
+            padding: 8px 14px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 13px;
+            transition: 0.2s;
+            margin-right: 5px;
+        }
+
+        .btn-pass {
+            background-color: #3182ce;
+            color: white;
+        }
+
+        .btn-pass:hover {
+            background-color: #2b6cb0;
+        }
+
+        .btn-del {
+            background-color: #e53e3e;
+            color: white;
+        }
+
+        .btn-del:hover {
+            background-color: #c53030;
+        }
+
+        .btn-back {
+            background-color: #4a5568;
+            color: white;
+            padding: 12px 25px;
+            font-size: 15px;
+            margin-top: 20px;
+            text-decoration: none;
+            display: inline-block;
+            border-radius: 6px;
+        }
+
+        /* MODAL STYLES */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            visibility: hidden;
+            opacity: 0;
+            transition: 0.3s;
+            z-index: 999;
+        }
+
+        .modal-box {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 360px;
+            text-align: left;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .modal-box h3 {
+            margin-top: 0;
+            color: #2c3e50;
+        }
+
+        .modal-box input {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0 20px 0;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 15px;
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <h2>📋 Λογαριασμοί Εκπαιδευτικών</h2>
+        <p>Διαχείριση κωδικών πρόσβασης και αφαίρεση χρηστών από το σύστημα.</p>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Ονοματεπώνυμο</th>
+                    <th>Username</th>
+                    <th>Ενέργειες</th>
+                </tr>
+            </thead>
+            <tbody id="teachers-table-body">
+            </tbody>
+        </table>
+
+        <a href="/admin" class="btn-back">⬅️ Επιστροφή στο Admin Panel</a>
+    </div>
+
+    <div id="password-modal" class="modal-overlay">
+        <div class="modal-box">
+            <h3>🔑 Αλλαγή Κωδικού</h3>
+            <p>Νέος κωδικός για τον/την: <b id="modal-teacher-name"></b></p>
+            <input type="text" id="new-password-input" placeholder="Πληκτρολογήστε τον νέο κωδικό...">
+            <input type="hidden" id="modal-teacher-id">
+            <div class="modal-actions">
+                <button class="btn" style="background:#e2e8f0; color:#4a5568;" onclick="closeModal()">Ακύρωση</button>
+                <button class="btn btn-pass" onclick="submitNewPassword()">Αποθήκευση</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Φόρτωση των καθηγητών αμέσως μόλις ανοίξει η σελίδα
+        function loadTeachers() {
+            fetch('/admin/api/get-teachers')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        const tbody = document.getElementById('teachers-table-body');
+                        tbody.innerHTML = '';
+
+                        if (data.teachers.length === 0) {
+                            tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:#718096;">Δεν βρέθηκαν εγγεγραμμένοι εκπαιδευτικοί.</td></tr>';
+                            return;
+                        }
+
+                        data.teachers.forEach(t => {
+                            tbody.innerHTML += `
+                        <tr>
+                            <td><b>${t.name}</b></td>
+                            <td><code style="background:#edf2f7; padding:3px 6px; border-radius:4px;">${t.username}</code></td>
+                            <td>
+                                <button class="btn btn-pass" onclick="openPasswordModal(${t.id}, '${t.name}')">🔑 Αλλαγή Password</button>
+                                <button class="btn btn-del" onclick="deleteTeacher(${t.id}, '${t.name}')">🗑️ Διαγραφή</button>
+                            </td>
+                        </tr>
+                    `;
+                        });
+                    } else {
+                        alert("Σφάλμα: " + data.message);
+                    }
+                });
+        }
+
+        // Διαγραφή Εκπαιδευτικού
+        function deleteTeacher(id, name) {
+            if (confirm(`⚠️ ΠΡΟΣΟΧΗ!\nΕίστε σίγουροι ότι θέλετε να διαγράψετε οριστικά τον/την εκπαιδευτικό "${name}";\nΑυτή η ενέργεια δεν αναιρείται.`)) {
+                fetch('/admin/api/delete-teacher-account', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: id })
+                })
+                    .then(res => res.json())
+                    .then(data => {
+                        alert(data.message);
+                        if (data.status === 'success') loadTeachers();
+                    });
+            }
+        }
+
+        // Διαχείριση Modal Παραθύρου
+        function openPasswordModal(id, name) {
+            document.getElementById('modal-teacher-id').value = id;
+            document.getElementById('modal-teacher-name').innerText = name;
+            document.getElementById('new-password-input').value = '';
+
+            const modal = document.getElementById('password-modal');
+            modal.style.visibility = 'visible';
+            modal.style.opacity = '1';
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('password-modal');
+            modal.style.visibility = 'hidden';
+            modal.style.opacity = '0';
+        }
+
+        // Υποβολή Νέου Κωδικού
+        function submitNewPassword() {
+            const id = document.getElementById('modal-teacher-id').value;
+            const newPassword = document.getElementById('new-password-input').value.strip ? document.getElementById('new-password-input').value.strip() : document.getElementById('new-password-input').value;
+
+            if (!newPassword) {
+                alert("Παρακαλώ πληκτρολογήστε έναν έγκυρο κωδικό!");
+                return;
+            }
+
+            fetch('/admin/api/change-teacher-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: id, new_password: newPassword })
+            })
+                .then(res => res.json())
+                .then(data => {
+                    alert(data.message);
+                    if (data.status === 'success') closeModal();
+                });
+        }
+
+        // Εκκίνηση φόρτωσης
+        loadTeachers();
+    </script>
+
+</body>
+
+</html>
