@@ -694,4 +694,4 @@ if __name__ == '__main__':
     print(f"   Setup URL:   http://localhost:5000/admin/totp-setup")
     print("=" * 70)
 
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=True, host='0.0.0.0', port=80)

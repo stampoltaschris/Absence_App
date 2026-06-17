@@ -124,75 +124,10 @@
             display: none;
             font-weight: bold;
         }
-
-        /* 🎯 CSS MODAL */
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.7);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 9999;
-            visibility: hidden;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-
-        .modal-box {
-            background-color: white;
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
-            max-width: 400px;
-            width: 90%;
-            border-top: 8px solid #e53e3e;
-        }
-
-        .modal-box h3 {
-            color: #e53e3e;
-            margin-top: 0;
-            font-size: 24px;
-        }
-
-        .modal-box p {
-            font-size: 17px;
-            color: #2d3748;
-            line-height: 1.6;
-        }
-
-        .modal-close-btn {
-            background-color: #38a169;
-            color: white;
-            border: none;
-            padding: 14px 25px;
-            font-size: 16px;
-            font-weight: bold;
-            border-radius: 6px;
-            cursor: pointer;
-            margin-top: 20px;
-            width: 100%;
-            transition: 0.2s;
-        }
-
-        .modal-close-btn:hover {
-            background-color: #2f855a;
-        }
     </style>
 </head>
 
 <body>
-
-    <div id="reminder-modal" class="modal-overlay">
-        <div class="modal-box">
-            <h3>⚠️ Προσοχή!</h3>
-            <p>Παρακαλώ προχωρήστε σε καταχώριση απουσιών για την τρέχουσα ώρα.</p>
-            <button class="modal-close-btn" onclick="closeReminderModal()">🛑 Σταμάτημα Ήχου & Κλείσιμο</button>
-        </div>
-    </div>
 
     <div class="navbar">
         <div class="user-info">Σύνδεση ως: <b>{{ username }}</b></div>
@@ -211,6 +146,13 @@
         </div>
 
         <div id="warning-msg" class="warning-banner">⚠️ Απομένουν λιγότερα από 10 λεπτά! Παρακαλώ ελέγξτε τις απουσίες.
+        </div>
+
+        <div style="text-align: center; margin-top: 10px; margin-bottom: 15px;">
+            <button id="mute-btn" onclick="manualMuteSound()"
+                style="background-color: #e53e3e; color: white; padding: 12px 24px; font-size: 16px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; display: none; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 100%; max-width: 450px; margin: 0 auto;">
+                Mute 🔇 Κλείσιμο Ήχου Προειδοποίησης
+            </button>
         </div>
 
         {% for student in students %}
@@ -237,11 +179,8 @@
     <script>
         let absentStudents = [];
         let isSubmitted = false;
-        let reminderInterval;
         let alarm = document.getElementById("alert-sound");
-
-        // 🎯 ΜΕΤΑΒΛΗΤΗ ΠΟΥ ΘΥΜΑΤΑΙ ΑΝ ΕΧΕΙ ΗΔΗ ΧΤΥΠΗΣΕΙ Η ΩΡΑ ΜΕΣΑ ΣΤΗ ΣΕΛΙΔΑ
-        let lastTriggeredTime = "";
+        let isMutedByTeacher = false;
 
         // 1. Λειτουργία Επιλογής / Ακύρωσης Απουσίας
         function toggleAbsence(studentId) {
@@ -282,7 +221,6 @@
                             isSubmitted = true;
                             document.getElementById('warning-msg').style.display = 'none';
                             stopWarningSound();
-                            clearInterval(reminderInterval);
                             absentStudents.forEach(id => {
                                 document.getElementById(`card-${id}`).style.backgroundColor = '#d4edda';
                                 document.getElementById(`card-${id}`).style.borderColor = '#c3e6cb';
@@ -312,7 +250,6 @@
                         alert("Η υποβολή ολοκληρώθηκε! Όλοι οι μαθητές σημειώθηκαν ως παρόντες.");
                         isSubmitted = true;
                         stopWarningSound();
-                        clearInterval(reminderInterval);
                         window.location.href = '/dashboard';
                     } else { alert("Σφάλμα: " + data.message); }
                 });
@@ -328,8 +265,9 @@
         }
         setInterval(updateClock, 1000); updateClock();
 
-        // 5. Έλεγχος Warning Banner
+        // 5. Έλεγχος Warning Banner (Συγχρονισμένο με το server.py)
         const SCHOOL_SCHEDULE = { "1η": "09:00", "2η": "09:50", "3η": "10:45", "4η": "11:40", "5η": "12:35", "6η": "13:25", "7η": "14:10" };
+
         const currentHourPeriod = "{{ hour }}";
 
         function checkTimeRemaining() {
@@ -339,21 +277,46 @@
             const now = new Date(); const [endHours, endMinutes] = endTimeStr.split(':').map(Number);
             const endTime = new Date(); endTime.setHours(endHours, endMinutes, 0, 0);
             const diffMinutes = Math.floor((endTime - now) / 1000 / 60);
+
+            // Αν βρισκόμαστε στα τελευταία 10 λεπτά του μαθήματος
             if (diffMinutes >= 0 && diffMinutes <= 10) {
                 document.getElementById('warning-msg').style.display = 'block';
+                if (!isMutedByTeacher) {
+                    playWarningSound();
+                }
+            } else {
+                // Αν για οποιοδήποτε λόγο δεν είμαστε στα 10 λεπτά, κρύβει το banner
+                document.getElementById('warning-msg').style.display = 'none';
+                isMutedByTeacher = false;
             }
         }
-        setInterval(checkTimeRemaining, 30000); setTimeout(checkTimeRemaining, 2000);
+        // Έλεγχος ανά 10 δευτερόλεπτα
+        setInterval(checkTimeRemaining, 10000); setTimeout(checkTimeRemaining, 2000);
 
         // 6. ΔΙΑΧΕΙΡΙΣΗ ΗΧΟΥ
         function playWarningSound() {
             if (alarm && alarm.paused) {
                 alarm.loop = true;
                 alarm.play().catch(e => console.log("Αναμονή για αλληλεπίδραση χρήστη:", e));
+
+                // Εμφάνιση του κουμπιού σίγασης
+                const muteBtn = document.getElementById('mute-btn');
+                if (muteBtn) muteBtn.style.display = 'block';
             }
         }
 
-        // Ξεκλειδώνουμε κρυφά την άδεια ήχου του tablet με το πρώτο scroll/άγγιγμα στη σελίδα
+        function manualMuteSound() {
+            // 🎯 ΠΡΟΣΘΕΡΕ ΑΥΤΗ ΤΗ ΓΡΑΜΜΗ:
+            isMutedByTeacher = true; // Κλειδώνει τον ήχο για αυτή την ώρα
+
+            stopWarningSound();
+
+            // Κρύβουμε το κουμπί αφού πατηθεί
+            const muteBtn = document.getElementById('mute-btn');
+            if (muteBtn) muteBtn.style.display = 'none';
+        }
+
+        // Κρυφό ξεκλείδωμα ήχου tablet
         document.body.addEventListener('touchstart', function () {
             if (alarm && alarm.paused && alarm.currentTime === 0) {
                 alarm.play().then(() => { alarm.pause(); alarm.currentTime = 0; }).catch(e => { });
@@ -368,54 +331,11 @@
 
         function stopWarningSound() {
             if (alarm) {
+                alarm.loop = false;
                 alarm.pause();
                 alarm.currentTime = 0;
             }
         }
-
-        // 7. 🎯 ΕΛΕΓΧΟΣ ΩΡΑΣ: ΕΝΕΡΓΟΠΟΙΕΙΤΑΙ LIVE ΚΑΙ ΜΟΝΟ ΜΙΑ ΦΟΡΑ ΑΝΑ ΛΕΠΤΟ
-        function checkTimeForReminder() {
-            if (isSubmitted) return;
-            let now = new Date();
-            let timeStr = now.toTimeString().split(' ')[0].substring(0, 5);
-
-            // ⚠️ Ώρες αυτόματης ενεργοποίησης (Ρυθμίστηκε στο 11:55 και 11:56 για τη live δοκιμή σου!)
-            let messageWindows = [
-                "08:55", "09:50", "10:45", "11:40", "12:35", "13:25", "14:20"
-            ];
-
-            // 🎯 Αν η ώρα είναι στη λίστα ΚΑΙ δεν έχουμε ήδη χτυπήσει για ΑΥΤΟ το λεπτό
-            if (messageWindows.includes(timeStr) && lastTriggeredTime !== timeStr) {
-
-                // Καταγράφουμε ότι χτυπήσαμε τώρα, ώστε να μην ξαναμπει στο if στα επόμενα 10 δευτερόλεπτα
-                lastTriggeredTime = timeStr;
-
-                // 1. Εμφάνιση του Παραθύρου LIVE στην οθόνη
-                const modal = document.getElementById("reminder-modal");
-                modal.style.visibility = "visible";
-                modal.style.opacity = "1";
-
-                // 2. Ο ήχος ξεκινάει να βαράει LIVE σε loop
-                playWarningSound();
-            }
-        }
-
-        // 8. ΚΛΕΙΣΙΜΟ ΚΑΙ ΣΙΓΑΣΗ ΑΠΟ ΤΟΝ ΚΑΘΗΓΗΤΗ
-        function closeReminderModal() {
-            stopWarningSound(); // 1. Σταματάει ο ήχος αμέσως
-
-            const modal = document.getElementById("reminder-modal");
-            modal.style.visibility = "hidden";
-            modal.style.opacity = "0"; // 2. Κλείνει το παράθυρο
-
-            // ❌ ΔΕΝ κάνουμε πλέον clearInterval, ώστε το χρονόμετρο να παραμένει ενεργό 
-            // για τις επόμενες διδακτικές ώρες live!
-            console.log("Το live modal έκλεισε επιτυχώς.");
-        }
-
-        checkTimeForReminder();
-        // Έλεγχος ανά 5 δευτερόλεπτα για απόλυτη live ακρίβεια
-        reminderInterval = setInterval(checkTimeForReminder, 5000);
     </script>
 </body>
 
